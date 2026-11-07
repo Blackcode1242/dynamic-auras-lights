@@ -10,6 +10,16 @@ Extensão experimental para Owlbear Rodeo 2.0: auras e luzes animadas nos tokens
 
 O ícone da extensão na barra de ferramentas abre o mesmo painel (nesse caso ele fecha ao clicar fora).
 
+## Luz ambiente em desenhos
+Formas (retângulo, círculo, triângulo, hexágono) e curvas desenhadas no mapa também aceitam aura. A luz **preenche o contorno do desenho**, então serve para iluminar uma sala inteira.
+1. Desenhe a forma (ou curva fechada) no mapa e selecione-a.
+2. Botão direito → **Ativar luz ambiente**.
+3. No painel, ajuste efeito, cor, intensidade e **Suavidade da borda** (quanto a luz esmaece para dentro do contorno).
+4. **Expansão da luz** define quantos quadrados a luz vaza para fora do contorno (0 = só dentro).
+5. Ative **Esconder o desenho (opacidade 0)** para sumir com o desenho e deixar só a luz. Desligar a aura devolve a opacidade original.
+
+Observações: curvas são tratadas como polígonos fechados e simplificadas para no máximo 48 pontos; linhas abertas viram uma faixa retangular em volta delas.
+
 ## Recursos
 - A aura fica salva no próprio token, então acompanha a cena e aparece para todos os jogadores que tenham a extensão.
 - Formato círculo ou quadrado, com suavidade de borda ajustável.
