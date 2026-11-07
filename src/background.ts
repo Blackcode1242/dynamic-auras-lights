@@ -139,15 +139,21 @@ function queueSync() {
 
 // ---------- Painel lateral ----------
 
-async function openPanel() {
+async function openPanel(specificTokenId?: string) {
+  // Fecha a janela anterior para evitar duplicidade na tela
+  try {
+    await OBR.popover.close(EDITOR_ID);
+  } catch (e) {
+    // Ignora caso não esteja aberta
+  }
+  
   const [width, height, selections] = await Promise.all([
     OBR.viewport.getWidth(),
     OBR.viewport.getHeight(),
     OBR.player.getSelection()
   ]);
 
-  // Pega o primeiro token selecionado (se houver)
-  const selectedId = selections && selections.length > 0 ? selections[0] : "";
+  const selectedId = specificTokenId || (selections && selections.length > 0 ? selections[0] : "");
   const url = selectedId 
     ? assetUrl(`index.html?docked=1&tokenId=${selectedId}`)
     : assetUrl("index.html?docked=1");
