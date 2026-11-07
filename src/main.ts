@@ -7,14 +7,10 @@ import {
 } from "./shared";
 import type { AuraConfig, BlendModeName, Group, Placement, Preset, Shape } from "./shared";
 
-const urlParams = new URLSearchParams(location.search);
-const docked = urlParams.has("docked");
-const initialTokenId = urlParams.get("tokenId");
-
-let selected: Image[] = [];   // tokens selecionados no mapa
-let active = false;           // algum token selecionado tem aura
+let selected: Image[] = [];
+let active = false;
 let draft: AuraConfig = loadDraft();
-let lastEdit = 0;             // quando mexi num controle (evita o painel brigar com o próprio slider)
+let lastEdit = 0;
 let writeTimer: number | undefined;
 
 function presetOptions() {
@@ -34,7 +30,7 @@ function render() {
       <header>
         <div class="topline">
           <div class="eyebrow">OWLBEAR RODEO · EXTENSION</div>
-          <button id="close" class="icon-btn" title="Fechar painel" hidden>✕</button>
+          <button id="close" class="icon-btn" title="Fechar painel">✕</button>
         </div>
         <h1>Dynamic Auras <span>& Lights</span></h1>
       </header>
@@ -118,7 +114,6 @@ function render() {
   const statusEl = $<HTMLElement>("#status");
   const closeEl = $<HTMLButtonElement>("#close");
 
-  closeEl.hidden = !docked;
   closeEl.addEventListener("click", () => { OBR.popover.close(EDITOR_ID).catch(console.error); });
 
   function showStatus(message: string) {
@@ -201,7 +196,7 @@ function render() {
       showStatus("");
     } catch (error) {
       console.error(error);
-      showStatus("Não foi possível salvar. Você tem permissão para editar este token?");
+      showStatus("Não foi possível salvar.");
     }
   }
 
@@ -214,11 +209,10 @@ function render() {
       showStatus("");
     } catch (error) {
       console.error(error);
-      showStatus("Não foi possível remover. Você tem permissão para editar este token?");
+      showStatus("Não foi possível remover.");
     }
   }
 
-  // Grava no token (e portanto em todos os jogadores) logo após o último movimento do controle.
   function commit() {
     lastEdit = Date.now();
     saveDraft(draft);
@@ -263,36 +257,15 @@ function render() {
     }
   });
 
-  // Seleção mudou no mapa.
-  let lastSelection = "";
-  OBR.player.onChange((player) => {
-    const key = (player.selection ?? []).join(",");
-    if (key === lastSelection) return;
-    lastSelection = key;
+  OBR.player.onChange(() => {
     refresh(true);
   });
 
-// Metadados dos tokens mudaram (menu de contexto, outro jogador etc.) — só vale com cena carregada.
-  let unsubscribeItems: (() => void) | undefined;
-  const bindScene = async (ready: boolean) => {
-    unsubscribeItems?.();
-    unsubscribeItems = ready ? OBR.scene.items.onChange(() => { refresh(false); }) : undefined;
-    
-    // Se veio um tokenId específico pela URL (ex: via menu de contexto), selecionamos ele temporariamente no painel
-    if (ready && initialTokenId) {
-      const items = await OBR.scene.items.getItems([initialTokenId]);
-      selected = items.filter(isToken);
-      const source = selected.find((token) => getAura(token));
-      active = Boolean(source);
-      if (source) draft = normalizeConfig(getAura(source));
-      updateView(true);
-    } else {
-      refresh(true);
-    }
-  };
-  OBR.scene.onReadyChange(bindScene);
-  OBR.scene.isReady().then(bindScene).catch(console.error);
+  OBR.scene.items.onChange(() => {
+    refresh(false);
+  });
 
+  refresh(true);
   writeUi(draft);
 }
 
