@@ -166,7 +166,7 @@ function render() {
     if (syncControls) writeUi(draft);
   }
 
-  async function refresh(force: boolean) {
+async function refresh(force: boolean) {
     try {
       if (!(await OBR.scene.isReady())) {
         selected = [];
@@ -174,31 +174,43 @@ function render() {
         updateView(true);
         return;
       }
+      // Pega os IDs selecionados pelo jogador atual
       const ids = await OBR.player.getSelection();
       const items = ids?.length ? await OBR.scene.items.getItems(ids) : [];
+      
+      // Filtra apenas os tokens válidos
       selected = items.filter(isToken);
+      
+      // Procura se algum dos tokens selecionados possui a chave de aura configurada
       const source = selected.find((token) => getAura(token));
       active = Boolean(source);
+      
       const idle = Date.now() - lastEdit > 700;
-      if (source && (force || idle)) draft = normalizeConfig(getAura(source));
+      if (source && (force || idle)) {
+        draft = normalizeConfig(getAura(source));
+      }
       updateView(force || idle);
     } catch (error) {
-      console.error(error);
+      console.error("Erro ao atualizar painel:", error);
     }
   }
 
-  async function writeAura(config: AuraConfig) {
-    if (!selected.length) return;
-    try {
-      await OBR.scene.items.updateItems(selected, (items) => {
-        for (const item of items) item.metadata[AURA_KEY] = { ...config };
-      });
-      showStatus("");
-    } catch (error) {
-      console.error(error);
-      showStatus("Não foi possível salvar.");
-    }
-  }
+  // Ouve alterações de seleção do jogador no mapa em tempo real
+  OBR.player.onChange(() => {
+    refresh(true);
+  });
+
+  // Ouve alterações nos itens do mapa (caso outro jogador mude ou atualize dados)
+  OBR.scene.items.onChange(() => {
+    refresh(false);
+  });
+
+  // Inicializa o painel verificando a seleção atual assim que a cena carregar
+  OBR.scene.isReady().then((ready) => {
+    if (ready) refresh(true);
+  }).catch(console.error);
+
+  writeUi(draft);
 
   async function removeAura() {
     if (!selected.length) return;
