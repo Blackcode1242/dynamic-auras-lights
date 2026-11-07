@@ -2,6 +2,14 @@
 
 Extensão experimental para Owlbear Rodeo 2.0.
 
+## Recursos
+- Formato da aura: círculo ou quadrado.
+- Suavidade da borda ajustável (de borda limpa a brilho totalmente difuso).
+- Posição: abaixo ou acima do token.
+- Modos de mistura (Soft Light, Hard Light, Overlay, Screen, Multiply, Plus etc.).
+- Efeitos animados: tocha, lâmpada defeituosa, queda de energia, emergência, arcana, divina, espectral, pulsante e estática.
+- A aura é centralizada no centro visual da imagem do token, mesmo com token girado ou redimensionado.
+
 ## Requisitos
 - Node.js 20+
 - npm
@@ -37,5 +45,5 @@ O resultado fica na pasta `dist/`.
 ## Próximas melhorias
 - Sincronização entre jogadores com permissões e armazenamento compartilhado.
 - Context menu para aplicar aura com clique direito.
-- Ajuste de formato/posição e suporte a mais tipos de item.
+- Suporte a mais tipos de item (props e montarias).
 - Integração opcional com Dynamic Fog para fontes de luz reais.
