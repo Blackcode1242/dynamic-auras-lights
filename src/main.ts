@@ -7,7 +7,9 @@ import {
 } from "./shared";
 import type { AuraConfig, BlendModeName, Group, Placement, Preset, Shape } from "./shared";
 
-const docked = new URLSearchParams(location.search).has("docked");
+const urlParams = new URLSearchParams(location.search);
+const docked = urlParams.has("docked");
+const initialTokenId = urlParams.get("tokenId");
 
 let selected: Image[] = [];   // tokens selecionados no mapa
 let active = false;           // algum token selecionado tem aura
@@ -270,12 +272,23 @@ function render() {
     refresh(true);
   });
 
-  // Metadados dos tokens mudaram (menu de contexto, outro jogador etc.) — só vale com cena carregada.
+// Metadados dos tokens mudaram (menu de contexto, outro jogador etc.) — só vale com cena carregada.
   let unsubscribeItems: (() => void) | undefined;
-  const bindScene = (ready: boolean) => {
+  const bindScene = async (ready: boolean) => {
     unsubscribeItems?.();
     unsubscribeItems = ready ? OBR.scene.items.onChange(() => { refresh(false); }) : undefined;
-    refresh(true);
+    
+    // Se veio um tokenId específico pela URL (ex: via menu de contexto), selecionamos ele temporariamente no painel
+    if (ready && initialTokenId) {
+      const items = await OBR.scene.items.getItems([initialTokenId]);
+      selected = items.filter(isToken);
+      const source = selected.find((token) => getAura(token));
+      active = Boolean(source);
+      if (source) draft = normalizeConfig(getAura(source));
+      updateView(true);
+    } else {
+      refresh(true);
+    }
   };
   OBR.scene.onReadyChange(bindScene);
   OBR.scene.isReady().then(bindScene).catch(console.error);
