@@ -140,17 +140,28 @@ function queueSync() {
 // ---------- Painel lateral ----------
 
 async function openPanel() {
-  const [width, height] = await Promise.all([OBR.viewport.getWidth(), OBR.viewport.getHeight()]);
+  const [width, height, selections] = await Promise.all([
+    OBR.viewport.getWidth(),
+    OBR.viewport.getHeight(),
+    OBR.player.getSelection()
+  ]);
+
+  // Pega o primeiro token selecionado (se houver)
+  const selectedId = selections && selections.length > 0 ? selections[0] : "";
+  const url = selectedId 
+    ? assetUrl(`index.html?docked=1&tokenId=${selectedId}`)
+    : assetUrl("index.html?docked=1");
+
   await OBR.popover.open({
     id: EDITOR_ID,
-    url: assetUrl("index.html?docked=1"),
+    url: url,
     width: 340,
     height: Math.min(780, Math.max(420, height - 90)),
     anchorReference: "POSITION",
     anchorPosition: { left: width - 12, top: 64 },
     anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
     transformOrigin: { horizontal: "RIGHT", vertical: "TOP" },
-    disableClickAway: true // fica aberto enquanto você seleciona outros tokens
+    disableClickAway: true
   });
 }
 
