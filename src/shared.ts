@@ -1,11 +1,26 @@
-import { isImage } from "@owlbear-rodeo/sdk";
-import type { Image, Item } from "@owlbear-rodeo/sdk";
+import { isCurve, isImage, isShape } from "@owlbear-rodeo/sdk";
+import type { Curve, Image, Item, Shape as ObrShape } from "@owlbear-rodeo/sdk";
 
 export const EXTENSION_ID = "com.example.dynamic-auras-lights";
 // A aura de cada token fica guardada nos metadados dele (sincroniza com a sala e com a cena salva).
 export const AURA_KEY = `${EXTENSION_ID}/aura`;
 export const DRAFT_KEY = `${EXTENSION_ID}/draft`;
 export const EDITOR_ID = `${EXTENSION_ID}/editor`;
+export const VERSION = "1.3.0";
+// false = só o painel do ícone da barra (manifest). true = também abre o painel lateral (popover) pelo menu.
+// Desligado por padrão: foi depois do painel lateral que a seleção parou de ser identificada.
+export const USE_SIDEBAR = false;
+// Ponte entre o script de fundo e o painel (mesma origem): o fundo grava a seleção aqui.
+export const SEL_KEY = `${EXTENSION_ID}/selection`;
+export function writeSharedSelection(ids: string[]) {
+  try { localStorage.setItem(SEL_KEY, JSON.stringify(ids)); } catch { /* ignora */ }
+}
+export function readSharedSelection(): string[] {
+  try {
+    const v = JSON.parse(localStorage.getItem(SEL_KEY) ?? "[]");
+    return Array.isArray(v) ? v.filter((x) => typeof x === "string") : [];
+  } catch { return []; }
+}
 
 export type StyleName = "glow" | "torch" | "ghost" | "flame" | "ring" | "ripple" | "beams" | "electric" | "sparkle";
 export type MotionName =
@@ -106,7 +121,7 @@ export function normalizeConfig(raw: unknown): AuraConfig {
   return {
     preset,
     color,
-    radius: num(r.radius, DEFAULT_CONFIG.radius, 0.5, 20),
+    radius: num(r.radius, DEFAULT_CONFIG.radius, 0, 20),
     intensity: num(r.intensity, PRESETS[preset].intensity, 0.1, 1.5),
     speed: num(r.speed, PRESETS[preset].speed, 0, 8),
     softness: num(r.softness, PRESETS[preset].softness, 0, 1),
@@ -125,10 +140,155 @@ export function saveDraft(config: AuraConfig) {
 }
 
 // ---- Tokens ----
-const TOKEN_LAYERS: string[] = ["CHARACTER", "MOUNT", "PROP"];
-
+// Mesmo critério do menu de contexto: qualquer imagem que não seja o mapa.
 export function isToken(item: Item): item is Image {
-  return isImage(item) && TOKEN_LAYERS.includes(item.layer);
+  return isImage(item) && item.layer !== "MAP";
+}
+
+// ---- Desenhos (luz ambiente) ----
+// Formas e curvas desenhadas no mapa também podem ter aura: a luz preenche o contorno do desenho.
+export type Vec2 = { x: number; y: number };
+export type Area = ObrShape | Curve;
+export const HIDE_KEY = `${EXTENSION_ID}/hidden-drawing`;
+
+export function isArea(item: Item): item is Area {
+  return isShape(item) || isCurve(item);
+}
+export function isAuraTarget(item: Item): item is Image | Area {
+  return isToken(item) || isArea(item);
+}
+
+// Esconde o desenho (opacidade 0) guardando os valores antigos para poder restaurar.
+export function hideDrawing(item: Area) {
+  const style = item.style as any;
+  if (!item.metadata[HIDE_KEY]) {
+    item.metadata[HIDE_KEY] = { fill: style.fillOpacity, stroke: style.strokeOpacity };
+  }
+  style.fillOpacity = 0;
+  style.strokeOpacity = 0;
+}
+export function showDrawing(item: Area) {
+  const prev = item.metadata[HIDE_KEY] as { fill?: number; stroke?: number } | undefined;
+  if (!prev) return;
+  const style = item.style as any;
+  style.fillOpacity = typeof prev.fill === "number" ? prev.fill : 1;
+  style.strokeOpacity = typeof prev.stroke === "number" ? prev.stroke : 1;
+  delete item.metadata[HIDE_KEY];
+}
+export function isHidden(item: Item) {
+  return Boolean(item.metadata?.[HIDE_KEY]);
+}
+
+// Contorno do desenho em coordenadas do mapa (posição + rotação + escala já aplicadas).
+// "center" (opcional) é o centro real da forma, vindo de OBR.scene.items.getItemBounds:
+// usado em círculo/hexágono para não depender de onde o Owlbear ancora a posição.
+export function areaPolygon(item: Area, center?: Vec2): Vec2[] {
+  const sx = item.scale?.x ?? 1;
+  const sy = item.scale?.y ?? 1;
+  const toWorld = (pt: Vec2): Vec2 => {
+    const r = rotate({ x: pt.x * sx, y: pt.y * sy }, item.rotation ?? 0);
+    return { x: item.position.x + r.x, y: item.position.y + r.y };
+  };
+  if (isCurve(item)) return item.points.map(toWorld);
+
+  const w = item.width;
+  const h = item.height;
+  switch (item.shapeType) {
+    case "CIRCLE":
+    case "HEXAGON": {
+      const n = item.shapeType === "CIRCLE" ? 36 : 6;
+      const c = center ?? item.position;
+      const rx = (w * Math.abs(sx)) / 2;
+      const ry = (h * Math.abs(sy)) / 2;
+      const pts: Vec2[] = [];
+      for (let k = 0; k < n; k++) {
+        const a = (k / n) * Math.PI * 2 - Math.PI / 2;
+        const r = rotate({ x: Math.cos(a) * rx, y: Math.sin(a) * ry }, item.rotation ?? 0);
+        pts.push({ x: c.x + r.x, y: c.y + r.y });
+      }
+      return pts;
+    }
+    case "TRIANGLE":
+      return [{ x: w / 2, y: 0 }, { x: w, y: h }, { x: 0, y: h }].map(toWorld);
+    default:
+      return [{ x: 0, y: 0 }, { x: w, y: 0 }, { x: w, y: h }, { x: 0, y: h }].map(toWorld);
+  }
+}
+
+function distToSegment(p: Vec2, a: Vec2, b: Vec2) {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len2 = dx * dx + dy * dy;
+  const t = len2 > 0 ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2)) : 0;
+  return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+}
+
+// Ramer-Douglas-Peucker: reduz um traço à mão livre a poucos pontos (o shader tem custo por ponto).
+function rdp(pts: Vec2[], eps: number): Vec2[] {
+  if (pts.length < 3) return pts.slice();
+  const keep = new Array<boolean>(pts.length).fill(false);
+  keep[0] = keep[pts.length - 1] = true;
+  const stack: [number, number][] = [[0, pts.length - 1]];
+  while (stack.length) {
+    const [a, b] = stack.pop()!;
+    let maxD = 0;
+    let idx = -1;
+    for (let i = a + 1; i < b; i++) {
+      const d = distToSegment(pts[i], pts[a], pts[b]);
+      if (d > maxD) { maxD = d; idx = i; }
+    }
+    if (idx >= 0 && maxD > eps) { keep[idx] = true; stack.push([a, idx], [idx, b]); }
+  }
+  return pts.filter((_, i) => keep[i]);
+}
+
+export const MAX_AREA_POINTS = 48;
+
+export function simplifyPolygon(points: Vec2[], tolerance: number, maxPoints = MAX_AREA_POINTS): Vec2[] {
+  let pts = points.slice();
+  // Se o traço termina onde começou, tira o ponto repetido.
+  if (pts.length > 1) {
+    const f = pts[0];
+    const l = pts[pts.length - 1];
+    if (Math.hypot(f.x - l.x, f.y - l.y) < 0.5) pts.pop();
+  }
+  let eps = tolerance;
+  let out = rdp(pts, eps);
+  for (let i = 0; i < 14 && out.length > maxPoints; i++) {
+    eps *= 1.5;
+    out = rdp(pts, eps);
+  }
+  return out;
+}
+
+export type AreaGeometry = { x: number; y: number; width: number; height: number; sksl: string };
+
+// Calcula onde fica o efeito (caixa que envolve o desenho + a expansão) e o shader com o contorno embutido.
+export function areaGeometry(polygon: Vec2[], cfg: AuraConfig, dpi: number): AreaGeometry {
+  let pts = simplifyPolygon(polygon, Math.max(1, dpi * 0.04));
+  if (pts.length < 3) {
+    // Linha ou ponto: usa a caixa do desenho para ainda ter uma área.
+    const xs = polygon.map((p) => p.x);
+    const ys = polygon.map((p) => p.y);
+    const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+    const pad = dpi * 0.25;
+    pts = [
+      { x: minX - pad, y: minY - pad }, { x: maxX + pad, y: minY - pad },
+      { x: maxX + pad, y: maxY + pad }, { x: minX - pad, y: maxY + pad }
+    ];
+  }
+  const spread = Math.max(0, cfg.radius) * dpi;
+  const margin = spread + 2;
+  const xs = pts.map((p) => p.x);
+  const ys = pts.map((p) => p.y);
+  const x = Math.min(...xs) - margin;
+  const y = Math.min(...ys) - margin;
+  const width = Math.max(...xs) + margin - x;
+  const height = Math.max(...ys) + margin - y;
+  const local = pts.map((p) => ({ x: p.x - x, y: p.y - y }));
+  // Escala usada nos efeitos de borda: metade do menor lado, entre 0,5 e 6 quadrados.
+  const unit = Math.min(6 * dpi, Math.max(0.5 * dpi, 0.5 * Math.min(width, height)));
+  return { x, y, width, height, sksl: shaderForArea(cfg.preset, local, width, height, spread, unit) };
 }
 
 export function getAura(item: Item): AuraConfig | null {
@@ -376,7 +536,7 @@ const STYLE: Record<StyleName, { pre: string; post: string }> = {
   }
 };
 
-export function shaderFor(presetKey: Preset) {
+function buildShader(presetKey: Preset, extraUniforms: string, helpers: string, geometry: string) {
   const def = PRESETS[presetKey] ?? PRESETS.torch;
   const style = STYLE[def.style];
   // "size" e "time" são fornecidos pelo renderizador de efeitos do Owlbear.
@@ -386,21 +546,18 @@ export function shaderFor(presetKey: Preset) {
     uniform float intensity;
     uniform float speed;
     uniform float softness;
-    uniform float shape;
     uniform vec3 auraColor;
+    ${extraUniforms}
     ${MOTION_FUNCTIONS}
+    ${helpers}
 
     half4 main(float2 coord) {
-      vec2 p = coord / size * 2.0 - 1.0;
       float sp = max(speed, 0.05);
       float t = time;
 
-      // Distância assinada até a borda: negativa dentro, 0 na borda, positiva fora.
-      float cr = clamp(softness * 0.5, 0.0, 0.5);
-      vec2 q = abs(p) - (1.0 - cr);
-      float boxSdf = length(max(q, vec2(0.0))) + min(max(q.x, q.y), 0.0) - cr;
-      float circleSdf = length(p) - 1.0;
-      float sdf = mix(circleSdf, boxSdf, shape);
+      // A geometria define "p" (coordenada normalizada) e "sdf" (distância assinada até a borda:
+      // negativa dentro, 0 na borda, positiva fora).
+      ${geometry}
       ${style.pre}
 
       float s = max(softness, 0.03);
@@ -417,4 +574,49 @@ export function shaderFor(presetKey: Preset) {
       return half4(color * a, a);
     }
   `;
+}
+
+// Token: círculo ou quadrado centrado na imagem.
+export function shaderFor(presetKey: Preset) {
+  return buildShader(presetKey, "uniform float shape;", "", `
+      vec2 p = coord / size * 2.0 - 1.0;
+      float cr = clamp(softness * 0.5, 0.0, 0.5);
+      vec2 q = abs(p) - (1.0 - cr);
+      float boxSdf = length(max(q, vec2(0.0))) + min(max(q.x, q.y), 0.0) - cr;
+      float circleSdf = length(p) - 1.0;
+      float sdf = mix(circleSdf, boxSdf, shape);`);
+}
+
+const AREA_HELPERS = `
+    // Um lado do contorno: atualiza a menor distância (dist) e o sinal dentro/fora (sgn).
+    void edgeStep(vec2 c, vec2 a, vec2 b, inout float dist, inout float sgn) {
+      vec2 pa = c - a;
+      vec2 ba = b - a;
+      float h = clamp(dot(pa, ba) / max(dot(ba, ba), 0.0001), 0.0, 1.0);
+      dist = min(dist, length(pa - ba * h));
+      bool above1 = a.y > c.y;
+      bool above2 = b.y > c.y;
+      if (above1 != above2) {
+        if (c.x < (b.x - a.x) * (c.y - a.y) / (b.y - a.y) + a.x) sgn = -sgn;
+      }
+    }`;
+
+// Desenho: a luz segue o contorno real do desenho (pontos embutidos no shader, em pixels locais).
+export function shaderForArea(presetKey: Preset, pts: Vec2[], width: number, height: number, spread: number, unit: number) {
+  const f = (n: number) => n.toFixed(1);
+  const edges = pts
+    .map((a, i) => {
+      const b = pts[(i + 1) % pts.length];
+      return `edgeStep(c, vec2(${f(a.x)}, ${f(a.y)}), vec2(${f(b.x)}, ${f(b.y)}), dist, sgn);`;
+    })
+    .join("\n      ");
+  return buildShader(presetKey, "", AREA_HELPERS, `
+      // "c" fica nas mesmas unidades dos pontos embutidos, qualquer que seja a escala do "coord".
+      vec2 c = coord / size * vec2(${f(width)}, ${f(height)});
+      float dist = 100000.0;
+      float sgn = 1.0;
+      ${edges}
+      float unit = ${f(unit)};
+      vec2 p = (c - vec2(${f(width)}, ${f(height)}) * 0.5) / unit;
+      float sdf = (sgn * dist - ${f(spread)}) / unit;`);
 }

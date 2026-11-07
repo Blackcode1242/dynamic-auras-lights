@@ -33,3 +33,7 @@ footer { color: #777d8a; font-size: 10px; text-align: center; margin-top: 12px; 
 .switch input:checked + .track::after { transform: translateX(16px); background: #24180d; }
 .switch input:focus-visible + .track { outline: 2px solid #f3a65c; outline-offset: 2px; }
 .switch-text { font-weight: 800; }
+
+.diag { margin: 10px 0 0; font-size: 11px; color: #8f98ad; }
+.diag summary { cursor: pointer; }
+.diag pre { white-space: pre-wrap; word-break: break-word; margin: 6px 0 0; padding: 8px; border-radius: 8px; background: rgba(255,255,255,0.04); font-size: 11px; line-height: 1.5; }
