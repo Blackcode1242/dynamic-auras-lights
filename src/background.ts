@@ -139,35 +139,19 @@ function queueSync() {
 
 // ---------- Painel lateral ----------
 
-async function openPanel(specificTokenId?: string) {
-  // Fecha a janela anterior para evitar duplicidade na tela
+async function openPanel() {
   try {
     await OBR.popover.close(EDITOR_ID);
   } catch (e) {
-    // Ignora caso não esteja aberta
+    // Ignora se não estiver aberto
   }
-  
-  const [width, height, selections] = await Promise.all([
-    OBR.viewport.getWidth(),
-    OBR.viewport.getHeight(),
-    OBR.player.getSelection()
-  ]);
-
-  const selectedId = specificTokenId || (selections && selections.length > 0 ? selections[0] : "");
-  const url = selectedId 
-    ? assetUrl(`index.html?docked=1&tokenId=${selectedId}`)
-    : assetUrl("index.html?docked=1");
 
   await OBR.popover.open({
     id: EDITOR_ID,
-    url: url,
+    url: assetUrl("index.html"),
     width: 340,
-    height: Math.min(780, Math.max(420, height - 90)),
-    anchorReference: "POSITION",
-    anchorPosition: { left: width - 12, top: 64 },
-    anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
-    transformOrigin: { horizontal: "RIGHT", vertical: "TOP" },
-    disableClickAway: true
+    height: 520,
+    anchorReference: "POPUP"
   });
 }
 
