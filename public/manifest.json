@@ -1,14 +1,15 @@
+
 {
   "name": "Dynamic Auras & Lights",
   "version": "1.0.0",
   "manifest_version": 1,
   "description": "Auras coloridas e animadas para tokens no Owlbear Rodeo.",
-  "author": "Seu nome",
-  "icon": "./icon.svg",
+  "author": "Blackcode1242",
+  "icon": "https://blackcode1242.github.io/dynamic-auras-lights/icon.svg",
   "action": {
     "title": "Dynamic Auras",
-    "icon": "./icon.svg",
-    "popover": "./",
+    "icon": "https://blackcode1242.github.io/dynamic-auras-lights/icon.svg",
+    "popover": "https://blackcode1242.github.io/dynamic-auras-lights/",
     "height": 590,
     "width": 340
   }
