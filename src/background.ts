@@ -1,5 +1,5 @@
 import OBR, { buildEffect } from "@owlbear-rodeo/sdk";
-import type { Image, Item } from "@owlbear-rodeo/sdk";
+import type { Image, Item, Layer } from "@owlbear-rodeo/sdk";
 import {
   AURA_KEY, EDITOR_ID, EXTENSION_ID, getAura, hexToRgb, isToken, loadDraft,
   rotate, shaderFor, tokenCenter
@@ -26,7 +26,7 @@ function effectProps(token: Image, cfg: AuraConfig, dpi: number, effectRotation:
     width: radius * 2,
     height: radius * 2,
     position: { x: center.x - half.x, y: center.y - half.y },
-    layer: cfg.placement === "above" ? "ATTACHMENT" : "DRAWING",
+    layer: (cfg.placement === "above" ? "ATTACHMENT" : "DRAWING") as Layer,
     blendMode: cfg.blendMode,
     uniforms: [
       { name: "auraColor", value: hexToRgb(cfg.color) },
