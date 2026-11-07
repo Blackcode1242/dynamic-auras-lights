@@ -146,12 +146,21 @@ async function openPanel() {
     // Ignora se não estiver aberto
   }
 
+  const [width, height] = await Promise.all([
+    OBR.viewport.getWidth(),
+    OBR.viewport.getHeight()
+  ]);
+
   await OBR.popover.open({
     id: EDITOR_ID,
     url: assetUrl("index.html"),
     width: 340,
     height: 520,
-    anchorReference: "POPUP"
+    anchorReference: "POSITION",
+    anchorPosition: { left: width - 360, top: 64 },
+    anchorOrigin: { horizontal: "LEFT", vertical: "TOP" },
+    transformOrigin: { horizontal: "RIGHT", vertical: "TOP" },
+    disableClickAway: true
   });
 }
 
