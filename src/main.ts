@@ -3,10 +3,11 @@ import type { Image } from "@owlbear-rodeo/sdk";
 import "./style.css";
 import {
   AURA_KEY, BLEND_MODES, EDITOR_ID, GROUP_LABELS, PRESETS,
-  getAura, hideDrawing, isArea, isAuraTarget, isHidden, loadDraft, normalizeConfig, readSharedSelection,
-  saveDraft, SEL_KEY, showDrawing, VERSION
+  deletePreset, exportPresets, getAura, getSettings, hideDrawing, importPresets, isArea, isAuraTarget,
+  isHidden, loadDraft, loadSavedPresets, normalizeConfig, readSharedSelection, readStatus, saveDraft,
+  savePreset, SEL_KEY, setSettings, showDrawing, VERSION
 } from "./shared";
-import type { Area, AuraConfig, BlendModeName, Group, Placement, Preset, Shape } from "./shared";
+import type { Area, AuraConfig, BlendModeName, FogMode, Group, Placement, Preset, PresetDef, Quality, Shape } from "./shared";
 
 let selected: (Image | Area)[] = [];
 let active = false;
@@ -68,11 +69,13 @@ function render() {
           </div>
         </div>
         <div class="row">
-          <div class="field grow">
+          <div class="field grow" id="shapeField">
             <label for="shape">Formato</label>
             <select id="shape">
               <option value="circle">Círculo</option>
               <option value="square">Quadrado</option>
+              <option value="cone">Cone</option>
+              <option value="line">Linha</option>
             </select>
           </div>
           <div class="field grow">
@@ -82,6 +85,19 @@ function render() {
               <option value="above">Acima do token</option>
             </select>
           </div>
+        </div>
+        <div id="coneRow" hidden>
+          <label for="angle">Abertura do cone <output id="angleValue"></output></label>
+          <input id="angle" type="range" min="10" max="170" step="1" />
+        </div>
+        <div id="lineRow" hidden>
+          <label for="width">Largura da linha (quadrados)</label>
+          <input id="width" type="number" min="0.1" max="10" step="0.1" />
+        </div>
+        <div id="dirRow" hidden>
+          <label for="direction">Direção <output id="directionValue"></output></label>
+          <input id="direction" type="range" min="-180" max="180" step="5" />
+          <p class="hint small">0° = para onde o token está olhando (topo da imagem). O cone gira junto com o token.</p>
         </div>
         <label for="blend">Modo de mistura</label>
         <select id="blend">
@@ -93,6 +109,35 @@ function render() {
         <input id="intensity" type="range" min="0.1" max="1.5" step="0.01" />
         <label for="speed">Velocidade <output id="speedValue"></output></label>
         <input id="speed" type="range" min="0" max="8" step="0.1" />
+        <div id="fogRow">
+          <label for="fog">Luz no fog (Dynamic Fog)</label>
+          <select id="fog">
+            <option value="off">Desligada</option>
+            <option value="primary">Primária (revela o fog)</option>
+            <option value="secondary">Secundária (só se vista)</option>
+            <option value="auxiliary">Auxiliar (faz sombra, não ativa secundárias)</option>
+          </select>
+          <p class="hint small">Cria uma luz do fog dinâmico do Owlbear no token, com o mesmo alcance e formato. Precisa de paredes/fog dinâmico na cena.</p>
+        </div>
+
+        <details class="mine">
+          <summary>Meus presets</summary>
+          <select id="mine"><option value="">— meus presets —</option></select>
+          <div class="btnrow">
+            <button id="mineApply" type="button">Aplicar</button>
+            <button id="mineDelete" type="button">Apagar</button>
+          </div>
+          <input id="mineName" type="text" maxlength="40" placeholder="Nome para salvar a configuração atual" />
+          <div class="btnrow">
+            <button id="mineSave" type="button">Salvar atual</button>
+            <button id="mineIO" type="button">Exportar / importar</button>
+          </div>
+          <div id="ioBox" hidden>
+            <textarea id="mineText" rows="6" spellcheck="false"></textarea>
+            <button id="mineImport" type="button">Importar o texto acima</button>
+          </div>
+        </details>
+
         <label class="switch" id="hideRow" hidden>
           <input id="hide" type="checkbox" />
           <span class="track"></span>
@@ -100,6 +145,20 @@ function render() {
         </label>
         <p id="status" class="status" hidden></p>
       </section>
+
+      <details class="mine">
+        <summary>Desempenho (neste computador)</summary>
+        <label for="quality">Qualidade dos efeitos</label>
+        <select id="quality">
+          <option value="high">Alta (todos os efeitos)</option>
+          <option value="medium">Média (efeitos caros viram brilho simples)</option>
+          <option value="low">Baixa (só brilho/anel, contornos simples)</option>
+        </select>
+        <p class="hint small">Vale só para você. Em qualidade média/baixa as luzes do fog usam sombras duras, que são bem mais leves.</p>
+        <label for="fogOffset">Ajuste da direção do cone no fog (°)</label>
+        <input id="fogOffset" type="number" min="-180" max="180" step="5" />
+        <p class="hint small">Se o cone do fog apontar para um lado diferente do cone visual, ajuste aqui (tente 90 ou -90).</p>
+      </details>
 
       <details class="diag">
         <summary>Diagnóstico</summary>
@@ -133,6 +192,23 @@ function render() {
   const pickEl = $<HTMLSelectElement>("#pick");
   const diagEl = $<HTMLElement>("#diagText");
   const closeEl = $<HTMLButtonElement>("#close");
+  const shapeField = $<HTMLElement>("#shapeField");
+  const coneRow = $<HTMLElement>("#coneRow");
+  const lineRow = $<HTMLElement>("#lineRow");
+  const dirRow = $<HTMLElement>("#dirRow");
+  const fogRow = $<HTMLElement>("#fogRow");
+  const angleEl = $<HTMLInputElement>("#angle");
+  const widthEl = $<HTMLInputElement>("#width");
+  const directionEl = $<HTMLInputElement>("#direction");
+  const fogEl = $<HTMLSelectElement>("#fog");
+  const angleValue = $<HTMLOutputElement>("#angleValue");
+  const directionValue = $<HTMLOutputElement>("#directionValue");
+  const mineEl = $<HTMLSelectElement>("#mine");
+  const mineName = $<HTMLInputElement>("#mineName");
+  const ioBox = $<HTMLElement>("#ioBox");
+  const mineText = $<HTMLTextAreaElement>("#mineText");
+  const qualityEl = $<HTMLSelectElement>("#quality");
+  const fogOffsetEl = $<HTMLInputElement>("#fogOffset");
 
   closeEl.addEventListener("click", () => {
     OBR.popover.close(EDITOR_ID).catch(() => {});
@@ -148,6 +224,19 @@ function render() {
     softnessValue.value = `${Math.round(Number(softnessEl.value) * 100)}%`;
     intensityValue.value = `${Math.round(Number(intensityEl.value) * 100)}%`;
     speedValue.value = speedEl.value;
+    angleValue.value = `${angleEl.value}°`;
+    directionValue.value = `${directionEl.value}°`;
+  }
+
+  // Mostra só os campos que fazem sentido para o formato escolhido.
+  function updateRows() {
+    const onlyAreas = selected.length > 0 && selected.every(isArea);
+    const shape = shapeEl.value;
+    coneRow.hidden = onlyAreas || shape !== "cone";
+    lineRow.hidden = onlyAreas || shape !== "line";
+    dirRow.hidden = onlyAreas || (shape !== "cone" && shape !== "line");
+    shapeField.hidden = onlyAreas;
+    fogRow.hidden = onlyAreas; // a luz do fog só existe para tokens
   }
 
   function writeUi(cfg: AuraConfig) {
@@ -160,7 +249,12 @@ function render() {
     softnessEl.value = String(cfg.softness);
     intensityEl.value = String(cfg.intensity);
     speedEl.value = String(cfg.speed);
+    angleEl.value = String(cfg.angle);
+    widthEl.value = String(cfg.width);
+    directionEl.value = String(cfg.direction);
+    fogEl.value = cfg.fog;
     updateOutputs();
+    updateRows();
   }
 
   function readUi(): AuraConfig {
@@ -173,7 +267,11 @@ function render() {
       blendMode: blendEl.value as BlendModeName,
       softness: Number(softnessEl.value),
       intensity: Number(intensityEl.value),
-      speed: Number(speedEl.value)
+      speed: Number(speedEl.value),
+      angle: Number(angleEl.value),
+      width: Number(widthEl.value),
+      direction: Number(directionEl.value),
+      fog: fogEl.value as FogMode
     });
   }
 
@@ -194,6 +292,7 @@ function render() {
     hideEl.checked = areas.length > 0 && areas.every(isHidden);
     activeEl.checked = active;
     if (syncControls) writeUi(draft);
+    else updateRows();
   }
 
   async function writeAura(config: AuraConfig) {
@@ -243,7 +342,8 @@ function render() {
 
   // mode: "force" = atualiza tudo; "soft" = não mexe nos controles se você está editando; "poll" = só age se a seleção mudou.
   async function refresh(mode: "force" | "soft" | "poll") {
-    const d: Record<string, string> = { versão: VERSION };
+    const d: Record<string, string> = { versão: VERSION, qualidade: getSettings().quality };
+    for (const [k, v] of Object.entries(readStatus())) d[k] = v; // ex.: estado das luzes do fog
     try {
       const ready = await OBR.scene.isReady();
       d["cena pronta"] = ready ? "sim" : "NÃO";
@@ -311,20 +411,66 @@ function render() {
   }
 
   function onPreset() {
-    const preset = PRESETS[presetEl.value as Preset];
+    const preset: PresetDef = PRESETS[presetEl.value as Preset];
+    const onlyAreas = selected.length > 0 && selected.every(isArea);
     draft = {
       ...readUi(),
       color: preset.color,
       intensity: preset.intensity,
       speed: preset.speed,
-      softness: preset.softness
+      softness: preset.softness,
+      // Condições vêm com raio pequeno (em volta do token); em desenhos o raio é outra coisa e não muda.
+      ...(preset.radius !== undefined && !onlyAreas ? { radius: preset.radius } : {})
     };
     writeUi(draft);
     commit();
   }
 
-  for (const el of [colorEl, radiusEl, softnessEl, intensityEl, speedEl]) el.addEventListener("input", onEdit);
-  for (const el of [shapeEl, placementEl, blendEl]) el.addEventListener("change", onEdit);
+  for (const el of [colorEl, radiusEl, softnessEl, intensityEl, speedEl, angleEl, widthEl, directionEl]) el.addEventListener("input", onEdit);
+  for (const el of [shapeEl, placementEl, blendEl, fogEl]) el.addEventListener("change", onEdit);
+
+  // ---- Meus presets (ficam neste navegador; dá para exportar e importar como texto) ----
+  function renderMine() {
+    mineEl.innerHTML = "";
+    mineEl.append(new Option("— meus presets —", ""));
+    for (const p of loadSavedPresets()) mineEl.append(new Option(p.name, p.id)); // Option escapa o nome
+  }
+  renderMine();
+  $<HTMLButtonElement>("#mineSave").addEventListener("click", () => {
+    const list = savePreset(mineName.value, readUi());
+    mineName.value = "";
+    renderMine();
+    showStatus(`Preset salvo (${list.length} no total).`);
+  });
+  $<HTMLButtonElement>("#mineApply").addEventListener("click", () => {
+    const found = loadSavedPresets().find((p) => p.id === mineEl.value);
+    if (!found) { showStatus("Escolha um preset da lista."); return; }
+    draft = normalizeConfig(found.config);
+    writeUi(draft);
+    commit();
+    showStatus(`Preset "${found.name}" aplicado.`);
+  });
+  $<HTMLButtonElement>("#mineDelete").addEventListener("click", () => {
+    if (!mineEl.value) { showStatus("Escolha um preset da lista."); return; }
+    deletePreset(mineEl.value);
+    renderMine();
+    showStatus("Preset apagado.");
+  });
+  $<HTMLButtonElement>("#mineIO").addEventListener("click", () => {
+    ioBox.hidden = !ioBox.hidden;
+    if (!ioBox.hidden) mineText.value = exportPresets();
+  });
+  $<HTMLButtonElement>("#mineImport").addEventListener("click", () => {
+    const n = importPresets(mineText.value);
+    renderMine();
+    showStatus(n ? `${n} preset(s) importado(s).` : "Texto inválido: nada foi importado.");
+  });
+
+  // ---- Desempenho (por computador) ----
+  qualityEl.value = getSettings().quality;
+  fogOffsetEl.value = String(getSettings().fogOffset);
+  qualityEl.addEventListener("change", () => setSettings({ quality: qualityEl.value as Quality }));
+  fogOffsetEl.addEventListener("change", () => setSettings({ fogOffset: Number(fogOffsetEl.value) || 0 }));
   presetEl.addEventListener("change", onPreset);
 
   // Desenho invisível: zera preenchimento e contorno (guardando os valores) e só a luz fica visível.

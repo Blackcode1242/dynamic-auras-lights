@@ -20,6 +20,20 @@ Formas (retângulo, círculo, triângulo, hexágono) e curvas desenhadas no mapa
 
 Observações: curvas são tratadas como polígonos fechados e simplificadas para no máximo 48 pontos; linhas abertas viram uma faixa retangular em volta delas.
 
+## Novidades da 1.4
+
+**Cone e linha.** Em *Formato*, escolha Cone (com *abertura* em graus) ou Linha (com *largura* em quadrados). Os dois saem do centro do token, na direção em que ele está olhando, e giram junto com ele. *Direção* soma um desvio em graus (0° = topo da imagem do token).
+
+**Condições.** Novo grupo no seletor de efeitos: Envenenado, Sangrando, Em chamas, Congelado, Abençoado, Amaldiçoado, Enfeitiçado, Amedrontado, Atordoado, Paralisado, Concentrando e Invisível. Já vêm com raio pequeno, pensado para ficar em volta do token.
+
+**Meus presets.** Em *Meus presets*: salve a configuração atual com um nome, aplique, apague, ou use *Exportar / importar* para copiar tudo como texto e compartilhar com outros GMs. Ficam guardados neste navegador.
+
+**Luz no Dynamic Fog.** Em *Luz no fog*, a extensão cria uma luz do fog dinâmico nativo do Owlbear (item `LIGHT`) no token, com o mesmo alcance e formato (círculo ou cone; a linha vira um cone fino). Tipos: primária, secundária e auxiliar. A luz é local: cada pessoa a cria no seu navegador. Só vale para tokens.
+- A documentação do Owlbear não informa a unidade dos ângulos nem a direção do cone com rotação 0. A extensão assume graus. Se o cone do fog sair torto em relação ao cone visual, use *Ajuste da direção do cone no fog* em *Desempenho* (tente 90 ou -90).
+- O estado das luzes do fog aparece no *Diagnóstico*.
+
+**Qualidade (por computador).** Em *Desempenho*: Alta, Média ou Baixa. Média troca os efeitos mais pesados (chama, elétrico, cintilante, bolhas, órbita) por brilho simples. Baixa deixa só brilho e anel. As duas também simplificam contornos de desenhos e usam sombras duras no fog (`sourceRadius = 0`, o caminho mais rápido segundo a documentação).
+
 ## Recursos
 - A aura fica salva no próprio token, então acompanha a cena e aparece para todos os jogadores que tenham a extensão.
 - Formato círculo ou quadrado, com suavidade de borda ajustável.
