@@ -1,12 +1,13 @@
 import { isCurve, isImage, isShape } from "@owlbear-rodeo/sdk";
 import type { Curve, Image, Item, Shape as ObrShape } from "@owlbear-rodeo/sdk";
+import type { Schedule } from "./clock";
 
 export const EXTENSION_ID = "com.example.dynamic-auras-lights";
 // A aura de cada token fica guardada nos metadados dele (sincroniza com a sala e com a cena salva).
 export const AURA_KEY = `${EXTENSION_ID}/aura`;
 export const DRAFT_KEY = `${EXTENSION_ID}/draft`;
 export const EDITOR_ID = `${EXTENSION_ID}/editor`;
-export const VERSION = "1.4.0";
+export const VERSION = "1.5.0";
 // false = só o painel do ícone da barra (manifest). true = também abre o painel lateral (popover) pelo menu.
 // Desligado por padrão: foi depois do painel lateral que a seleção parou de ser identificada.
 export const USE_SIDEBAR = false;
@@ -30,6 +31,7 @@ export type Group = "light" | "aura" | "condition";
 export type Shape = "circle" | "square" | "cone" | "line";
 export type FogMode = "off" | "primary" | "secondary" | "auxiliary";
 export type Quality = "high" | "medium" | "low";
+export type { Schedule } from "./clock";
 export type Placement = "below" | "above";
 export type BlendModeName =
   | "SRC_OVER" | "SOFT_LIGHT" | "HARD_LIGHT" | "OVERLAY" | "SCREEN" | "COLOR_DODGE"
@@ -110,6 +112,7 @@ export type AuraConfig = {
   width: number;      // largura da linha, em quadrados
   direction: number;  // direção do cone/linha em relação ao topo do token, em graus (horário)
   fog: FogMode;       // luz do Dynamic Fog (só para tokens)
+  schedule: Schedule; // quando acende, se o Dynamic Day Cycle estiver ativo na cena
 };
 
 export const DEFAULT_CONFIG: AuraConfig = {
@@ -125,7 +128,8 @@ export const DEFAULT_CONFIG: AuraConfig = {
   angle: 60,
   width: 1,
   direction: 0,
-  fog: "off"
+  fog: "off",
+  schedule: "always"
 };
 
 function num(value: unknown, fallback: number, min: number, max: number) {
@@ -155,7 +159,8 @@ export function normalizeConfig(raw: unknown): AuraConfig {
     angle: num(r.angle, DEFAULT_CONFIG.angle, 10, 170),
     width: num(r.width, DEFAULT_CONFIG.width, 0.1, 10),
     direction: num(r.direction, DEFAULT_CONFIG.direction, -180, 180),
-    fog
+    fog,
+    schedule: r.schedule === "night" || r.schedule === "day" ? r.schedule : "always"
   };
 }
 

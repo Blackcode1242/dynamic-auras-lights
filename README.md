@@ -20,6 +20,10 @@ Formas (retângulo, círculo, triângulo, hexágono) e curvas desenhadas no mapa
 
 Observações: curvas são tratadas como polígonos fechados e simplificadas para no máximo 48 pontos; linhas abertas viram uma faixa retangular em volta delas.
 
+## Novidades da 1.5: integração com o Dynamic Day Cycle
+Cada aura/luz (token ou desenho) ganhou **Quando acende**: *Sempre*, *Só à noite* ou *Só de dia*. Isso só tem efeito quando a extensão **Dynamic Day Cycle** está ativa na cena; sem ela, tudo continua sempre aceso como antes. A agenda vale também para a luz do Dynamic Fog do token. Cada luz acende/apaga com uma pequena variação de minutos (configurada no Day Cycle), então a cidade vai acendendo aos poucos.
+A comunicação é só pelos metadados da cena (`src/clock.ts`, idêntico nas duas extensões): uma não precisa da outra para funcionar.
+
 ## Novidades da 1.4
 
 **Cone e linha.** Em *Formato*, escolha Cone (com *abertura* em graus) ou Linha (com *largura* em quadrados). Os dois saem do centro do token, na direção em que ele está olhando, e giram junto com ele. *Direção* soma um desvio em graus (0° = topo da imagem do token).

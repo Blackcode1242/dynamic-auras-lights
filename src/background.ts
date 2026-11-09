@@ -7,6 +7,8 @@ import {
   showDrawing, tokenCenter, tokenShapeUniforms, USE_SIDEBAR, VERSION, writeSharedSelection, writeStatus
 } from "./shared";
 import type { Area, AuraConfig, Quality } from "./shared";
+import { lightIsOn, readClock } from "./clock";
+import type { ClockState, Schedule } from "./clock";
 
 // Marca nos efeitos locais de qual token eles são, e a "assinatura" da última configuração aplicada.
 const TAG = `${EXTENSION_ID}/effect-for`;
@@ -188,6 +190,15 @@ async function syncFog(locals: Item[], wanted: FogWanted, dpi: number, quality: 
   writeStatus({ fog: wanted.size ? `${wanted.size} luz(es) no fog` : "nenhuma luz de fog ligada" });
 }
 
+// Relógio do Dynamic Day Cycle (metadados da cena). null = não usado: tudo continua sempre aceso.
+let clock: ClockState | null = null;
+// Itens com agenda e o último resultado aplicado; o intervalo abaixo só dispara sync quando algum muda.
+let gated: { id: string; schedule: Schedule }[] = [];
+let lastGate = "";
+function gateSignature(now: number) {
+  return gated.map((g) => g.id + (lightIsOn(g.id, g.schedule, clock, now) ? "1" : "0")).join("|");
+}
+
 async function sync() {
   const dpi = await OBR.scene.grid.getDpi();
   const items = await OBR.scene.items.getItems();
@@ -195,13 +206,21 @@ async function sync() {
 
   const wanted = new Map<string, { item: Image | Area; cfg: AuraConfig }>();
   const fogWanted: FogWanted = new Map();
+  const now = Date.now();
+  const nextGated: { id: string; schedule: Schedule }[] = [];
   for (const item of items) {
     if (!isAuraTarget(item)) continue;
     const cfg = getAura(item);
     if (!cfg) continue;
+    if (cfg.schedule !== "always") nextGated.push({ id: item.id, schedule: cfg.schedule });
+    // Fora do horário: o item é tratado como sem aura (some o efeito e a luz do fog).
+    if (!lightIsOn(item.id, cfg.schedule, clock, now)) continue;
     wanted.set(item.id, { item, cfg });
     if (isImage(item) && cfg.fog !== "off") fogWanted.set(item.id, { token: item, cfg });
   }
+
+  gated = nextGated;
+  lastGate = gateSignature(now);
 
   const locals = await OBR.scene.local.getItems();
   const existing = new Map<string, Item>();
@@ -437,13 +456,17 @@ function start() {
   stop();
   unsubscribers = [
     OBR.scene.items.onChange(() => queueSync()),
-    OBR.scene.grid.onChange(() => queueSync())
+    OBR.scene.grid.onChange(() => queueSync()),
+    OBR.scene.onMetadataChange((meta) => { clock = readClock(meta); queueSync(); })
   ];
-  queueSync();
+  OBR.scene.getMetadata().then((meta) => { clock = readClock(meta); queueSync(); }).catch(() => queueSync());
 }
 function stop() {
   for (const unsubscribe of unsubscribers) unsubscribe();
   unsubscribers = [];
+  clock = null;
+  gated = [];
+  lastGate = "";
 }
 
 OBR.onReady(async () => {
@@ -455,6 +478,10 @@ OBR.onReady(async () => {
   window.addEventListener("storage", (e) => {
     if (e.key === SETTINGS_KEY) queueSync();
   });
+  // A hora é calculada localmente: uma vez por segundo vê se alguma luz com agenda deve ligar ou desligar.
+  window.setInterval(() => {
+    if (gated.length && gateSignature(Date.now()) !== lastGate) queueSync();
+  }, 1000);
   OBR.scene.onReadyChange((ready) => (ready ? start() : stop()));
   if (await OBR.scene.isReady()) start();
 });

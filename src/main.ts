@@ -7,7 +7,7 @@ import {
   isHidden, loadDraft, loadSavedPresets, normalizeConfig, readSharedSelection, readStatus, saveDraft,
   savePreset, SEL_KEY, setSettings, showDrawing, VERSION
 } from "./shared";
-import type { Area, AuraConfig, BlendModeName, FogMode, Group, Placement, Preset, PresetDef, Quality, Shape } from "./shared";
+import type { Area, AuraConfig, BlendModeName, FogMode, Group, Placement, Preset, PresetDef, Quality, Schedule, Shape } from "./shared";
 
 let selected: (Image | Area)[] = [];
 let active = false;
@@ -120,6 +120,16 @@ function render() {
           <p class="hint small">Cria uma luz do fog dinâmico do Owlbear no token, com o mesmo alcance e formato. Precisa de paredes/fog dinâmico na cena.</p>
         </div>
 
+        <div id="scheduleRow">
+          <label for="schedule">Quando acende (Dynamic Day Cycle)</label>
+          <select id="schedule">
+            <option value="always">Sempre acesa</option>
+            <option value="night">Só à noite (acende ao anoitecer)</option>
+            <option value="day">Só de dia</option>
+          </select>
+          <p class="hint small">Vale só quando a extensão Dynamic Day Cycle está ativa na cena. Vale também para a luz do fog. Cada luz varia alguns minutos para não acender tudo junto.</p>
+        </div>
+
         <details class="mine">
           <summary>Meus presets</summary>
           <select id="mine"><option value="">— meus presets —</option></select>
@@ -201,6 +211,7 @@ function render() {
   const widthEl = $<HTMLInputElement>("#width");
   const directionEl = $<HTMLInputElement>("#direction");
   const fogEl = $<HTMLSelectElement>("#fog");
+  const scheduleEl = $<HTMLSelectElement>("#schedule");
   const angleValue = $<HTMLOutputElement>("#angleValue");
   const directionValue = $<HTMLOutputElement>("#directionValue");
   const mineEl = $<HTMLSelectElement>("#mine");
@@ -253,6 +264,7 @@ function render() {
     widthEl.value = String(cfg.width);
     directionEl.value = String(cfg.direction);
     fogEl.value = cfg.fog;
+    scheduleEl.value = cfg.schedule;
     updateOutputs();
     updateRows();
   }
@@ -271,7 +283,8 @@ function render() {
       angle: Number(angleEl.value),
       width: Number(widthEl.value),
       direction: Number(directionEl.value),
-      fog: fogEl.value as FogMode
+      fog: fogEl.value as FogMode,
+      schedule: scheduleEl.value as Schedule
     });
   }
 
@@ -427,7 +440,7 @@ function render() {
   }
 
   for (const el of [colorEl, radiusEl, softnessEl, intensityEl, speedEl, angleEl, widthEl, directionEl]) el.addEventListener("input", onEdit);
-  for (const el of [shapeEl, placementEl, blendEl, fogEl]) el.addEventListener("change", onEdit);
+  for (const el of [shapeEl, placementEl, blendEl, fogEl, scheduleEl]) el.addEventListener("change", onEdit);
 
   // ---- Meus presets (ficam neste navegador; dá para exportar e importar como texto) ----
   function renderMine() {
