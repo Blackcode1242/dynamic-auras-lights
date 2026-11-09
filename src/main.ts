@@ -33,29 +33,31 @@ function render() {
   app.innerHTML = `
     <main>
       <header>
-        <div class="topline">
+        <div class="header-left">
           <div class="eyebrow">OWLBEAR RODEO · EXTENSION</div>
+          <h1>Dynamic <span>Auras & Lights</span></h1>
+        </div>
+        <div class="header-right">
+          <label class="switch" title="Ativar ou desativar aura">
+            <input id="active" type="checkbox" />
+            <span class="track"></span>
+            <span class="switch-text">Ativo</span>
+          </label>
           <button id="close" class="icon-btn" title="Fechar painel">✕</button>
         </div>
-        <h1>Dynamic Auras <span>& Lights</span></h1>
       </header>
 
       <section id="empty" class="panel">
         <p class="empty-title">Nenhum token selecionado</p>
-        <p class="hint">Selecione um token ou um desenho (forma/curva) no mapa. Para ligar direto, clique com o botão direito e escolha <b>Ativar aura</b> (token) ou <b>Ativar luz ambiente</b> (desenho).</p>
+        <p class="hint">Selecione um token ou um desenho no mapa para configurar suas auras e luzes.</p>
         <label for="pick">Ou escolha pela lista</label>
         <select id="pick"><option value="">— escolher —</option></select>
       </section>
 
       <section id="editor" class="panel" hidden>
         <div class="sel" id="selInfo"></div>
-        <label class="switch">
-          <input id="active" type="checkbox" />
-          <span class="track"></span>
-          <span class="switch-text">Aura ativa</span>
-        </label>
 
-        <label for="preset">Efeito</label>
+        <label for="preset">Efeito / Preset</label>
         <select id="preset">${presetOptions()}</select>
 
         <div class="row">
@@ -68,6 +70,7 @@ function render() {
             <input id="radius" type="number" min="0.5" max="20" step="0.5" />
           </div>
         </div>
+
         <div class="row">
           <div class="field grow" id="shapeField">
             <label for="shape">Formato</label>
@@ -86,69 +89,75 @@ function render() {
             </select>
           </div>
         </div>
+
         <div id="coneRow" hidden>
           <label for="angle">Abertura do cone <output id="angleValue"></output></label>
           <input id="angle" type="range" min="10" max="170" step="1" />
         </div>
+
         <div id="lineRow" hidden>
           <label for="width">Largura da linha (quadrados)</label>
           <input id="width" type="number" min="0.1" max="10" step="0.1" />
         </div>
+
         <div id="dirRow" hidden>
           <label for="direction">Direção <output id="directionValue"></output></label>
           <input id="direction" type="range" min="-180" max="180" step="5" />
-          <p class="hint small">0° = para onde o token está olhando (topo da imagem). O cone gira junto com o token.</p>
+          <p class="hint small">0° = para onde o token está olhando (topo da imagem).</p>
         </div>
+
         <label for="blend">Modo de mistura</label>
         <select id="blend">
           ${BLEND_MODES.map((m) => `<option value="${m.value}">${m.label}</option>`).join("")}
         </select>
+
         <label for="softness">Suavidade da borda <output id="softnessValue"></output></label>
         <input id="softness" type="range" min="0" max="1" step="0.01" />
+
         <label for="intensity">Intensidade <output id="intensityValue"></output></label>
         <input id="intensity" type="range" min="0.1" max="1.5" step="0.01" />
+
         <label for="speed">Velocidade <output id="speedValue"></output></label>
         <input id="speed" type="range" min="0" max="8" step="0.1" />
+
         <div id="fogRow">
           <label for="fog">Luz no fog (Dynamic Fog)</label>
           <select id="fog">
             <option value="off">Desligada</option>
             <option value="primary">Primária (revela o fog)</option>
             <option value="secondary">Secundária (só se vista)</option>
-            <option value="auxiliary">Auxiliar (faz sombra, não ativa secundárias)</option>
+            <option value="auxiliary">Auxiliar (faz sombra)</option>
           </select>
-          <p class="hint small">Cria uma luz do fog dinâmico do Owlbear no token, com o mesmo alcance e formato. Precisa de paredes/fog dinâmico na cena.</p>
         </div>
 
         <div id="scheduleRow">
           <label for="schedule">Quando acende (Dynamic Day Cycle)</label>
           <select id="schedule">
             <option value="always">Sempre acesa</option>
-            <option value="night">Só à noite (acende ao anoitecer)</option>
+            <option value="night">Só à noite</option>
             <option value="day">Só de dia</option>
           </select>
-          <p class="hint small">Vale só quando a extensão Dynamic Day Cycle está ativa na cena. Vale também para a luz do fog. Cada luz varia alguns minutos para não acender tudo junto.</p>
         </div>
 
         <details class="mine">
-          <summary>Meus presets</summary>
+          <summary>Meus presets salvos</summary>
           <select id="mine"><option value="">— meus presets —</option></select>
           <div class="btnrow">
             <button id="mineApply" type="button">Aplicar</button>
             <button id="mineDelete" type="button">Apagar</button>
           </div>
-          <input id="mineName" type="text" maxlength="40" placeholder="Nome para salvar a configuração atual" />
+          <input id="mineName" type="text" maxlength="40" placeholder="Nome do preset" />
           <div class="btnrow">
             <button id="mineSave" type="button">Salvar atual</button>
-            <button id="mineIO" type="button">Exportar / importar</button>
+            <button id="mineIO" type="button">Exportar/Importar</button>
           </div>
           <div id="ioBox" hidden>
-            <textarea id="mineText" rows="6" spellcheck="false"></textarea>
-            <button id="mineImport" type="button">Importar o texto acima</button>
+            <textarea id="mineText" rows="5" spellcheck="false"></textarea>
+            <button id="mineImport" type="button">Importar texto</button>
           </div>
         </details>
 
-        <label class="switch" id="hideRow" hidden>
+        <label class="switch" id="hideRow" hidden style="margin-top: 6px;">
           <input id="hide" type="checkbox" />
           <span class="track"></span>
           <span class="switch-text">Esconder o desenho (opacidade 0)</span>
@@ -157,24 +166,22 @@ function render() {
       </section>
 
       <details class="mine">
-        <summary>Desempenho (neste computador)</summary>
+        <summary>Desempenho e Ajustes</summary>
         <label for="quality">Qualidade dos efeitos</label>
         <select id="quality">
           <option value="high">Alta (todos os efeitos)</option>
-          <option value="medium">Média (efeitos caros viram brilho simples)</option>
-          <option value="low">Baixa (só brilho/anel, contornos simples)</option>
+          <option value="medium">Média (brilho simples)</option>
+          <option value="low">Baixa (sombras duras)</option>
         </select>
-        <p class="hint small">Vale só para você. Em qualidade média/baixa as luzes do fog usam sombras duras, que são bem mais leves.</p>
-        <label for="fogOffset">Ajuste da direção do cone no fog (°)</label>
+        <label for="fogOffset" style="margin-top:6px;">Ajuste do cone no fog (°)</label>
         <input id="fogOffset" type="number" min="-180" max="180" step="5" />
-        <p class="hint small">Se o cone do fog apontar para um lado diferente do cone visual, ajuste aqui (tente 90 ou -90).</p>
       </details>
 
       <details class="diag">
         <summary>Diagnóstico</summary>
         <pre id="diagText"></pre>
       </details>
-      <footer>Versão ${VERSION} · as mudanças valem na hora</footer>
+      <footer>Dynamic Auras & Lights v${VERSION}</footer>
     </main>
   `;
 
@@ -239,7 +246,6 @@ function render() {
     directionValue.value = `${directionEl.value}°`;
   }
 
-  // Mostra só os campos que fazem sentido para o formato escolhido.
   function updateRows() {
     const onlyAreas = selected.length > 0 && selected.every(isArea);
     const shape = shapeEl.value;
@@ -247,7 +253,7 @@ function render() {
     lineRow.hidden = onlyAreas || shape !== "line";
     dirRow.hidden = onlyAreas || (shape !== "cone" && shape !== "line");
     shapeField.hidden = onlyAreas;
-    fogRow.hidden = onlyAreas; // a luz do fog só existe para tokens
+    fogRow.hidden = onlyAreas;
   }
 
   function writeUi(cfg: AuraConfig) {
@@ -296,7 +302,6 @@ function render() {
     selInfo.textContent = selected.length === 1
       ? (selected[0].name || (isArea(selected[0]) ? "Desenho sem nome" : "Token sem nome"))
       : `${selected.length} itens selecionados`;
-    // Em desenhos, o "raio" vira a expansão da luz para fora do contorno (pode ser 0).
     const areas = selected.filter(isArea);
     const onlyAreas = areas.length === selected.length;
     radiusLabel.textContent = onlyAreas ? "Expansão da luz (quadrados)" : "Raio (quadrados)";
@@ -327,7 +332,7 @@ function render() {
       await OBR.scene.items.updateItems(selected, (items) => {
         for (const item of items) {
           delete item.metadata[AURA_KEY];
-          if (isArea(item)) showDrawing(item); // devolve a opacidade original do desenho
+          if (isArea(item)) showDrawing(item);
         }
       });
       showStatus("");
@@ -341,7 +346,6 @@ function render() {
     diagEl.textContent = Object.entries(d).map(([k, v]) => `${k}: ${v}`).join("\n");
   }
 
-  // Lista de tokens/desenhos da cena: permite escolher o alvo sem depender da seleção no mapa.
   async function fillPicker() {
     const all = (await OBR.scene.items.getItems()).filter(isAuraTarget);
     const key = all.map((i) => i.id).join(",");
@@ -353,10 +357,9 @@ function render() {
     }).join("");
   }
 
-  // mode: "force" = atualiza tudo; "soft" = não mexe nos controles se você está editando; "poll" = só age se a seleção mudou.
   async function refresh(mode: "force" | "soft" | "poll") {
     const d: Record<string, string> = { versão: VERSION, qualidade: getSettings().quality };
-    for (const [k, v] of Object.entries(readStatus())) d[k] = v; // ex.: estado das luzes do fog
+    for (const [k, v] of Object.entries(readStatus())) d[k] = v;
     try {
       const ready = await OBR.scene.isReady();
       d["cena pronta"] = ready ? "sim" : "NÃO";
@@ -368,7 +371,6 @@ function render() {
         return;
       }
 
-      // Três fontes, em ordem: seleção lida pelo painel > seleção gravada pelo script de fundo > escolha na lista.
       let ids: string[] = [];
       let from = "nenhuma";
       try {
@@ -432,7 +434,6 @@ function render() {
       intensity: preset.intensity,
       speed: preset.speed,
       softness: preset.softness,
-      // Condições vêm com raio pequeno (em volta do token); em desenhos o raio é outra coisa e não muda.
       ...(preset.radius !== undefined && !onlyAreas ? { radius: preset.radius } : {})
     };
     writeUi(draft);
@@ -442,11 +443,10 @@ function render() {
   for (const el of [colorEl, radiusEl, softnessEl, intensityEl, speedEl, angleEl, widthEl, directionEl]) el.addEventListener("input", onEdit);
   for (const el of [shapeEl, placementEl, blendEl, fogEl, scheduleEl]) el.addEventListener("change", onEdit);
 
-  // ---- Meus presets (ficam neste navegador; dá para exportar e importar como texto) ----
   function renderMine() {
     mineEl.innerHTML = "";
     mineEl.append(new Option("— meus presets —", ""));
-    for (const p of loadSavedPresets()) mineEl.append(new Option(p.name, p.id)); // Option escapa o nome
+    for (const p of loadSavedPresets()) mineEl.append(new Option(p.name, p.id));
   }
   renderMine();
   $<HTMLButtonElement>("#mineSave").addEventListener("click", () => {
@@ -479,14 +479,12 @@ function render() {
     showStatus(n ? `${n} preset(s) importado(s).` : "Texto inválido: nada foi importado.");
   });
 
-  // ---- Desempenho (por computador) ----
   qualityEl.value = getSettings().quality;
   fogOffsetEl.value = String(getSettings().fogOffset);
   qualityEl.addEventListener("change", () => setSettings({ quality: qualityEl.value as Quality }));
   fogOffsetEl.addEventListener("change", () => setSettings({ fogOffset: Number(fogOffsetEl.value) || 0 }));
   presetEl.addEventListener("change", onPreset);
 
-  // Desenho invisível: zera preenchimento e contorno (guardando os valores) e só a luz fica visível.
   hideEl.addEventListener("change", async () => {
     const areas = selected.filter(isArea);
     if (!areas.length) return;
@@ -519,7 +517,7 @@ function render() {
   });
 
   OBR.player.onChange(() => {
-    manualIds = []; // a seleção real manda
+    manualIds = [];
     refresh("force");
   });
 
@@ -531,7 +529,6 @@ function render() {
     refresh("force");
   });
 
-  // O script de fundo avisa quando a seleção muda (outra origem de eventos).
   window.addEventListener("storage", (e) => {
     if (e.key === SEL_KEY) refresh("force");
   });
@@ -540,18 +537,16 @@ function render() {
     const id = pickEl.value;
     if (!id) return;
     manualIds = [id];
-    OBR.player.select([id]).catch(() => {}); // também seleciona no mapa
+    OBR.player.select([id]).catch(() => {});
     refresh("force");
   });
 
-  // Rede de segurança: se algum evento não chegar, confere a seleção a cada segundo.
   window.setInterval(() => { refresh("poll"); }, 1000);
 
   writeUi(draft);
   refresh("force");
 }
 
-// Só monta o painel (e só fala com a API do Owlbear) DEPOIS que o SDK estiver pronto.
 OBR.onReady(() => {
   document.body.classList.add("obr-ready");
   render();
