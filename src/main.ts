@@ -33,10 +33,7 @@ function render() {
   app.innerHTML = `
     <main>
       <header>
-        <div class="header-left">
-          <div class="eyebrow">OWLBEAR RODEO · EXTENSION</div>
-          <h1>Dynamic <span>Auras & Lights</span></h1>
-        </div>
+        <h1>Dynamic <span>Auras & Lights</span></h1>
         <div class="header-right">
           <label class="switch" title="Ativar ou desativar aura">
             <input id="active" type="checkbox" />
@@ -57,80 +54,97 @@ function render() {
       <section id="editor" class="panel" hidden>
         <div class="sel" id="selInfo"></div>
 
-        <label for="preset">Efeito / Preset</label>
-        <select id="preset">${presetOptions()}</select>
+        <div class="dashboard-grid">
+          <!-- Coluna Esquerda -->
+          <div style="display: grid; gap: 10px;">
+            <div>
+              <label for="preset">Efeito / Preset</label>
+              <select id="preset">${presetOptions()}</select>
+            </div>
 
-        <div class="row">
-          <div class="field grow">
-            <label for="color">Cor</label>
-            <input id="color" type="color" />
+            <div class="row">
+              <div class="grow">
+                <label for="color">Cor</label>
+                <input id="color" type="color" />
+              </div>
+              <div class="grow">
+                <label for="radius" id="radiusLabel">Raio</label>
+                <input id="radius" type="number" min="0.5" max="20" step="0.5" />
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="grow" id="shapeField">
+                <label for="shape">Formato</label>
+                <select id="shape">
+                  <option value="circle">Círculo</option>
+                  <option value="square">Quadrado</option>
+                  <option value="cone">Cone</option>
+                  <option value="line">Linha</option>
+                </select>
+              </div>
+              <div class="grow">
+                <label for="placement">Posição</label>
+                <select id="placement">
+                  <option value="below">Abaixo</option>
+                  <option value="above">Acima</option>
+                </select>
+              </div>
+            </div>
+
+            <div id="coneRow" hidden>
+              <label for="angle">Abertura do cone <output id="angleValue"></output></label>
+              <input id="angle" type="range" min="10" max="170" step="1" />
+            </div>
+
+            <div id="lineRow" hidden>
+              <label for="width">Largura da linha</label>
+              <input id="width" type="number" min="0.1" max="10" step="0.1" />
+            </div>
+
+            <div id="dirRow" hidden>
+              <label for="direction">Direção <output id="directionValue"></output></label>
+              <input id="direction" type="range" min="-180" max="180" step="5" />
+            </div>
           </div>
-          <div class="field grow">
-            <label for="radius" id="radiusLabel">Raio (quadrados)</label>
-            <input id="radius" type="number" min="0.5" max="20" step="0.5" />
+
+          <!-- Coluna Direita -->
+          <div style="display: grid; gap: 10px;">
+            <div>
+              <label for="blend">Modo de mistura</label>
+              <select id="blend">
+                ${BLEND_MODES.map((m) => `<option value="${m.value}">${m.label}</option>`).join("")}
+              </select>
+            </div>
+
+            <div>
+              <label for="softness">Suavidade <output id="softnessValue"></output></label>
+              <input id="softness" type="range" min="0" max="1" step="0.01" />
+            </div>
+
+            <div>
+              <label for="intensity">Intensidade <output id="intensityValue"></output></label>
+              <input id="intensity" type="range" min="0.1" max="1.5" step="0.01" />
+            </div>
+
+            <div>
+              <label for="speed">Velocidade <output id="speedValue"></output></label>
+              <input id="speed" type="range" min="0" max="8" step="0.1" />
+            </div>
+
+            <div id="fogRow">
+              <label for="fog">Luz no Fog (Dynamic Fog)</label>
+              <select id="fog">
+                <option value="off">Desligada</option>
+                <option value="primary">Primária</option>
+                <option value="secondary">Secundária</option>
+                <option value="auxiliary">Auxiliar</option>
+              </select>
+            </div>
           </div>
         </div>
 
-        <div class="row">
-          <div class="field grow" id="shapeField">
-            <label for="shape">Formato</label>
-            <select id="shape">
-              <option value="circle">Círculo</option>
-              <option value="square">Quadrado</option>
-              <option value="cone">Cone</option>
-              <option value="line">Linha</option>
-            </select>
-          </div>
-          <div class="field grow">
-            <label for="placement">Posição</label>
-            <select id="placement">
-              <option value="below">Abaixo do token</option>
-              <option value="above">Acima do token</option>
-            </select>
-          </div>
-        </div>
-
-        <div id="coneRow" hidden>
-          <label for="angle">Abertura do cone <output id="angleValue"></output></label>
-          <input id="angle" type="range" min="10" max="170" step="1" />
-        </div>
-
-        <div id="lineRow" hidden>
-          <label for="width">Largura da linha (quadrados)</label>
-          <input id="width" type="number" min="0.1" max="10" step="0.1" />
-        </div>
-
-        <div id="dirRow" hidden>
-          <label for="direction">Direção <output id="directionValue"></output></label>
-          <input id="direction" type="range" min="-180" max="180" step="5" />
-          <p class="hint small">0° = para onde o token está olhando (topo da imagem).</p>
-        </div>
-
-        <label for="blend">Modo de mistura</label>
-        <select id="blend">
-          ${BLEND_MODES.map((m) => `<option value="${m.value}">${m.label}</option>`).join("")}
-        </select>
-
-        <label for="softness">Suavidade da borda <output id="softnessValue"></output></label>
-        <input id="softness" type="range" min="0" max="1" step="0.01" />
-
-        <label for="intensity">Intensidade <output id="intensityValue"></output></label>
-        <input id="intensity" type="range" min="0.1" max="1.5" step="0.01" />
-
-        <label for="speed">Velocidade <output id="speedValue"></output></label>
-        <input id="speed" type="range" min="0" max="8" step="0.1" />
-
-        <div id="fogRow">
-          <label for="fog">Luz no fog (Dynamic Fog)</label>
-          <select id="fog">
-            <option value="off">Desligada</option>
-            <option value="primary">Primária (revela o fog)</option>
-            <option value="secondary">Secundária (só se vista)</option>
-            <option value="auxiliary">Auxiliar (faz sombra)</option>
-          </select>
-        </div>
-
-        <div id="scheduleRow">
+        <div id="scheduleRow" class="full-width">
           <label for="schedule">Quando acende (Dynamic Day Cycle)</label>
           <select id="schedule">
             <option value="always">Sempre acesa</option>
@@ -139,10 +153,10 @@ function render() {
           </select>
         </div>
 
-        <details class="mine">
+        <details class="mine full-width">
           <summary>Meus presets salvos</summary>
           <select id="mine"><option value="">— meus presets —</option></select>
-          <div class="btnrow">
+          <div class="btnrow" style="margin-top:6px;">
             <button id="mineApply" type="button">Aplicar</button>
             <button id="mineDelete" type="button">Apagar</button>
           </div>
@@ -152,12 +166,12 @@ function render() {
             <button id="mineIO" type="button">Exportar/Importar</button>
           </div>
           <div id="ioBox" hidden>
-            <textarea id="mineText" rows="5" spellcheck="false"></textarea>
+            <textarea id="mineText" rows="4" spellcheck="false"></textarea>
             <button id="mineImport" type="button">Importar texto</button>
           </div>
         </details>
 
-        <label class="switch" id="hideRow" hidden style="margin-top: 6px;">
+        <label class="switch" id="hideRow" hidden style="margin-top: 4px;">
           <input id="hide" type="checkbox" />
           <span class="track"></span>
           <span class="switch-text">Esconder o desenho (opacidade 0)</span>
@@ -165,19 +179,27 @@ function render() {
         <p id="status" class="status" hidden></p>
       </section>
 
-      <details class="mine">
-        <summary>Desempenho e Ajustes</summary>
-        <label for="quality">Qualidade dos efeitos</label>
-        <select id="quality">
-          <option value="high">Alta (todos os efeitos)</option>
-          <option value="medium">Média (brilho simples)</option>
-          <option value="low">Baixa (sombras duras)</option>
-        </select>
-        <label for="fogOffset" style="margin-top:6px;">Ajuste do cone no fog (°)</label>
-        <input id="fogOffset" type="number" min="-180" max="180" step="5" />
-      </details>
+      <section class="panel" style="padding: 10px 14px;">
+        <details class="mine">
+          <summary>Desempenho e Ajustes</summary>
+          <div class="row" style="margin-top: 8px;">
+            <div class="grow">
+              <label for="quality">Qualidade</label>
+              <select id="quality">
+                <option value="high">Alta (todos)</option>
+                <option value="medium">Média (simples)</option>
+                <option value="low">Baixa (sombras)</option>
+              </select>
+            </div>
+            <div class="grow">
+              <label for="fogOffset">Ajuste cone no fog (°)</label>
+              <input id="fogOffset" type="number" min="-180" max="180" step="5" />
+            </div>
+          </div>
+        </details>
+      </section>
 
-      <details class="diag">
+      <details class="diag panel" style="padding: 10px 14px;">
         <summary>Diagnóstico</summary>
         <pre id="diagText"></pre>
       </details>
@@ -304,7 +326,7 @@ function render() {
       : `${selected.length} itens selecionados`;
     const areas = selected.filter(isArea);
     const onlyAreas = areas.length === selected.length;
-    radiusLabel.textContent = onlyAreas ? "Expansão da luz (quadrados)" : "Raio (quadrados)";
+    radiusLabel.textContent = onlyAreas ? "Expansão" : "Raio";
     radiusEl.min = onlyAreas ? "0" : "0.5";
     hideRow.hidden = areas.length === 0;
     hideEl.checked = areas.length > 0 && areas.every(isHidden);
