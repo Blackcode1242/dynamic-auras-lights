@@ -7,7 +7,7 @@ export const EXTENSION_ID = "com.example.dynamic-auras-lights";
 export const AURA_KEY = `${EXTENSION_ID}/aura`;
 export const DRAFT_KEY = `${EXTENSION_ID}/draft`;
 export const EDITOR_ID = `${EXTENSION_ID}/editor`;
-export const VERSION = "1.5.0";
+export const VERSION = "1.6.0";
 // false = só o painel do ícone da barra (manifest). true = também abre o painel lateral (popover) pelo menu.
 // Desligado por padrão: foi depois do painel lateral que a seleção parou de ser identificada.
 export const USE_SIDEBAR = false;
