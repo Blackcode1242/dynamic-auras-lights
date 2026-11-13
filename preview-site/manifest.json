@@ -1,0 +1,16 @@
+{
+  "name": "Dynamic Auras & Lights (Preview)",
+  "version": "1.6.0-preview",
+  "manifest_version": 1,
+  "description": "Uma extensão que aplica luzes e efeitos de ambiente dinâmicos para seu Owlbear Rodeo.",
+  "author": "Blackcode1242",
+  "icon": "https://cdn.jsdelivr.net/gh/Blackcode1242/dynamic-auras-lights@prototype/ambient-gradient/preview-site/icon.svg",
+  "background_url": "https://cdn.jsdelivr.net/gh/Blackcode1242/dynamic-auras-lights@prototype/ambient-gradient/preview-site/background.html",
+  "action": {
+    "title": "Dynamic Auras",
+    "icon": "https://cdn.jsdelivr.net/gh/Blackcode1242/dynamic-auras-lights@prototype/ambient-gradient/preview-site/icon.svg",
+    "popover": "https://cdn.jsdelivr.net/gh/Blackcode1242/dynamic-auras-lights@prototype/ambient-gradient/preview-site/index.html",
+    "height": 580,
+    "width": 640
+  }
+}
