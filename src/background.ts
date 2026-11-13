@@ -3,7 +3,7 @@ import * as SDK from "@owlbear-rodeo/sdk";
 import type { Image, Item, Layer } from "@owlbear-rodeo/sdk";
 import {
   AURA_KEY, EDITOR_ID, EXTENSION_ID, SETTINGS_KEY, areaGeometry, areaPolygon, fogParams, getAura,
-  getSettings, isArea, isAuraTarget, isDirectional, loadDraft, rotate, shaderFor,
+  getSettings, hexToRgb, isArea, isAuraTarget, isDirectional, loadDraft, rotate, shaderFor,
   showDrawing, tokenCenter, tokenShapeUniforms, USE_SIDEBAR, VERSION, writeSharedSelection, writeStatus
 } from "./shared";
 import type { Area, AuraConfig, Quality } from "./shared";
