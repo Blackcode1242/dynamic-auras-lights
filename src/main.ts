@@ -55,15 +55,13 @@ function render() {
         <div class="sel" id="selInfo"></div>
 
         <nav class="editor-tabs" aria-label="Categorias de configuração">
-          <button type="button" class="tab-button is-active" data-tab="effect">Essencial</button>
-          <button type="button" class="tab-button" data-tab="gradient">Gradiente</button>
-          <button type="button" class="tab-button" data-tab="geometry">Geometria</button>
+          <button type="button" class="tab-button is-active" data-tab="effect">Efeitos</button>
           <button type="button" class="tab-button" data-tab="advanced">Avançado</button>
         </nav>
 
         <div class="config-layout">
           <section class="config-section" data-tab-panel="effect">
-            <div class="section-heading"><span class="section-index">01</span><div><h2>Efeito</h2><p>Defina a aura que será aplicada ao elemento.</p></div></div>
+            <div class="section-heading"><h2>Efeito</h2></div>
             <div class="section-content">
               <div><label for="preset">Efeito / Preset</label><select id="preset">${presetOptions()}</select></div>
               <div class="row">
@@ -73,8 +71,8 @@ function render() {
             </div>
           </section>
 
-          <section class="config-section" data-tab-panel="gradient">
-            <div class="section-heading"><span class="section-index">02</span><div><h2>Gradiente</h2><p>Controle a transição entre as cores.</p></div></div>
+          <section class="config-section" data-tab-panel="effect">
+            <div class="section-heading"><h2>Gradiente</h2></div>
             <div class="section-content">
               <div class="row align-center">
                 <div class="grow"><label class="switch"><input id="gradientEnabled" type="checkbox" /><span class="track"></span><span class="switch-text">Ativar gradiente</span></label></div>
@@ -89,8 +87,8 @@ function render() {
             </div>
           </section>
 
-          <section class="config-section" data-tab-panel="geometry">
-            <div class="section-heading"><span class="section-index">03</span><div><h2>Geometria</h2><p>Escolha o formato e o posicionamento da aura.</p></div></div>
+          <section class="config-section" data-tab-panel="advanced">
+            <div class="section-heading"><h2>Geometria</h2></div>
             <div class="section-content">
               <div class="row">
                 <div class="grow" id="shapeField"><label for="shape">Formato</label><select id="shape"><option value="circle">Círculo</option><option value="square">Quadrado</option><option value="cone">Cone</option><option value="line">Linha</option></select></div>
@@ -103,7 +101,7 @@ function render() {
           </section>
 
           <section class="config-section" data-tab-panel="advanced">
-            <div class="section-heading"><span class="section-index">04</span><div><h2>Ajustes visuais</h2><p>Refine a aparência e o comportamento da luz.</p></div></div>
+            <div class="section-heading"><h2>Ajustes visuais</h2></div>
             <div class="section-content">
               <div><label for="blend">Modo de mistura</label><select id="blend">${BLEND_MODES.map((m) => `<option value="${m.value}">${m.label}</option>`).join("")}</select></div>
               <div><label for="softness">Suavidade <output id="softnessValue"></output></label><input id="softness" type="range" min="0" max="1" step="0.01" /></div>
@@ -113,7 +111,7 @@ function render() {
           </section>
 
           <section class="config-section" data-tab-panel="advanced">
-            <div class="section-heading"><span class="section-index">05</span><div><h2>Integrações</h2><p>Conecte a aura a outras extensões.</p></div></div>
+            <div class="section-heading"><h2>Integrações</h2></div>
             <div class="section-content">
               <div id="fogRow"><label for="fog">Luz no Fog (Dynamic Fog)</label><select id="fog"><option value="off">Desligada</option><option value="primary">Primária</option><option value="secondary">Secundária</option><option value="auxiliary">Auxiliar</option></select></div>
             </div>
