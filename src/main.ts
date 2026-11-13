@@ -147,7 +147,7 @@ function render() {
           </div>
         </details>
 
-        <label class="switch" id="hideRow" data-tab-panel="advanced" hidden style="margin-top: 4px;">
+        <label class="switch" id="hideRow" hidden style="margin-top: 4px;">
           <input id="hide" type="checkbox" />
           <span class="track"></span>
           <span class="switch-text">Esconder o desenho (opacidade 0)</span>
@@ -250,6 +250,7 @@ function render() {
       });
     });
   });
+  app.querySelector<HTMLButtonElement>('.tab-button[data-tab="effect"]')?.click();
 
   closeEl.addEventListener("click", () => {
     OBR.popover.close(EDITOR_ID).catch(() => {});
