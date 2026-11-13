@@ -2,10 +2,10 @@ import OBR from "@owlbear-rodeo/sdk";
 import type { Image } from "@owlbear-rodeo/sdk";
 import "./style.css";
 import {
-  AURA_KEY, BLEND_MODES, EDITOR_ID, GROUP_LABELS, PRESETS,
+  AURA_KEY, BLEND_MODES, DEFAULT_GLOBAL_ENVIRONMENT, EDITOR_ID, GLOBAL_KEY, GROUP_LABELS, PRESETS,
   deletePreset, exportPresets, getAura, getSettings, hideDrawing, importPresets, isArea, isAuraTarget,
   isHidden, loadDraft, loadSavedPresets, normalizeConfig, readSharedSelection, readStatus, saveDraft,
-  savePreset, SEL_KEY, setSettings, showDrawing, VERSION
+  savePreset, SEL_KEY, setSettings, showDrawing, VERSION, normalizeGlobalEnvironment
 } from "./shared";
 import type { Area, AuraConfig, BlendModeName, FogMode, Group, Placement, Preset, PresetDef, Quality, Schedule, Shape } from "./shared";
 
@@ -43,6 +43,34 @@ function render() {
           <button id="close" class="icon-btn" title="Fechar painel">✕</button>
         </div>
       </header>
+
+      <section class="panel" id="globalPanel">
+        <div>
+          <p class="empty-title">Ambiente global</p>
+          <p class="hint">Aplica iluminação, escuridão e tonalidade sobre o mapa e os tokens.</p>
+        </div>
+        <label class="switch">
+          <input id="globalEnabled" type="checkbox" />
+          <span class="track"></span>
+          <span class="switch-text">Ativar ambiente</span>
+        </label>
+        <div>
+          <label for="globalBrightness">Brilho global <output id="globalBrightnessValue"></output></label>
+          <input id="globalBrightness" type="range" min="0" max="2" step="0.01" />
+          <p class="hint">0 = escuro · 1 = normal · 2 = mais claro</p>
+        </div>
+        <div class="row">
+          <div class="grow">
+            <label for="globalTint">Temperatura / tonalidade</label>
+            <input id="globalTint" type="color" />
+          </div>
+          <div class="grow">
+            <label for="globalTintStrength">Força da tonalidade <output id="globalTintStrengthValue"></output></label>
+            <input id="globalTintStrength" type="range" min="0" max="1" step="0.01" />
+          </div>
+        </div>
+        <p id="globalStatus" class="hint"></p>
+      </section>
 
       <section id="empty" class="panel">
         <p class="empty-title">Nenhum token selecionado</p>
@@ -226,6 +254,13 @@ function render() {
   `;
 
   const $ = <T extends HTMLElement>(sel: string) => app.querySelector<T>(sel)!;
+  const globalEnabledEl = $<HTMLInputElement>("#globalEnabled");
+  const globalBrightnessEl = $<HTMLInputElement>("#globalBrightness");
+  const globalTintEl = $<HTMLInputElement>("#globalTint");
+  const globalTintStrengthEl = $<HTMLInputElement>("#globalTintStrength");
+  const globalBrightnessValue = $<HTMLOutputElement>("#globalBrightnessValue");
+  const globalTintStrengthValue = $<HTMLOutputElement>("#globalTintStrengthValue");
+  const globalStatusEl = $<HTMLElement>("#globalStatus");
   const emptyEl = $<HTMLElement>("#empty");
   const editorEl = $<HTMLElement>("#editor");
   const selInfo = $<HTMLElement>("#selInfo");
@@ -281,6 +316,38 @@ function render() {
     statusEl.textContent = message;
     statusEl.hidden = !message;
   }
+
+  function writeGlobalUi(raw: unknown) {
+    const cfg = normalizeGlobalEnvironment(raw);
+    globalEnabledEl.checked = cfg.enabled;
+    globalBrightnessEl.value = String(cfg.brightness);
+    globalTintEl.value = cfg.tint;
+    globalTintStrengthEl.value = String(cfg.tintStrength);
+    globalBrightnessValue.value = cfg.brightness.toFixed(2);
+    globalTintStrengthValue.value = `${Math.round(cfg.tintStrength * 100)}%`;
+    globalStatusEl.textContent = cfg.enabled ? "O ambiente será aplicado a todos os participantes." : "Ambiente global desativado.";
+  }
+
+  async function saveGlobalUi() {
+    const cfg = normalizeGlobalEnvironment({
+      enabled: globalEnabledEl.checked,
+      brightness: Number(globalBrightnessEl.value),
+      tint: globalTintEl.value,
+      tintStrength: Number(globalTintStrengthEl.value)
+    });
+    writeGlobalUi(cfg);
+    try {
+      await OBR.scene.setMetadata({ [GLOBAL_KEY]: cfg });
+    } catch (error) {
+      console.error(error);
+      globalStatusEl.textContent = "Não foi possível salvar o ambiente global.";
+    }
+  }
+  for (const el of [globalBrightnessEl, globalTintEl, globalTintStrengthEl]) el.addEventListener("input", saveGlobalUi);
+  globalEnabledEl.addEventListener("change", saveGlobalUi);
+  OBR.scene.getMetadata().then((meta) => writeGlobalUi(meta[GLOBAL_KEY] ?? DEFAULT_GLOBAL_ENVIRONMENT)).catch(() => writeGlobalUi(DEFAULT_GLOBAL_ENVIRONMENT));
+  OBR.scene.onMetadataChange((meta) => writeGlobalUi(meta[GLOBAL_KEY] ?? DEFAULT_GLOBAL_ENVIRONMENT));
+
 
   function updateOutputs() {
     softnessValue.value = `${Math.round(Number(softnessEl.value) * 100)}%`;
