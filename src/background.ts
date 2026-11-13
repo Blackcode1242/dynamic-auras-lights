@@ -39,6 +39,9 @@ function effectProps(token: Image, cfg: AuraConfig, dpi: number, effectRotation:
     blendMode: cfg.blendMode,
     uniforms: [
       { name: "auraColor", value: hexToRgb(cfg.color) },
+      { name: "gradientColor", value: hexToRgb(cfg.gradientColor) },
+      { name: "gradientEnabled", value: cfg.gradientEnabled ? 1 : 0 },
+      { name: "gradientAngle", value: (cfg.gradientAngle * Math.PI) / 180 },
       { name: "intensity", value: cfg.intensity },
       { name: "speed", value: cfg.speed },
       { name: "softness", value: cfg.softness },
@@ -87,6 +90,9 @@ async function areaProps(item: Area, cfg: AuraConfig, dpi: number, quality: Qual
     blendMode: cfg.blendMode,
     uniforms: [
       { name: "auraColor", value: hexToRgb(cfg.color) },
+      { name: "gradientColor", value: hexToRgb(cfg.gradientColor) },
+      { name: "gradientEnabled", value: cfg.gradientEnabled ? 1 : 0 },
+      { name: "gradientAngle", value: (cfg.gradientAngle * Math.PI) / 180 },
       { name: "intensity", value: cfg.intensity },
       { name: "speed", value: cfg.speed },
       { name: "softness", value: cfg.softness }
