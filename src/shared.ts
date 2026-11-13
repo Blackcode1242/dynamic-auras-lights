@@ -5,6 +5,28 @@ import type { Schedule } from "./clock";
 export const EXTENSION_ID = "com.example.dynamic-auras-lights";
 // A aura de cada token fica guardada nos metadados dele (sincroniza com a sala e com a cena salva).
 export const AURA_KEY = `${EXTENSION_ID}/aura`;
+export const GLOBAL_KEY = `${EXTENSION_ID}/global-environment`;
+export type GlobalEnvironment = {
+  enabled: boolean;
+  brightness: number;
+  tint: string;
+  tintStrength: number;
+};
+export const DEFAULT_GLOBAL_ENVIRONMENT: GlobalEnvironment = {
+  enabled: false,
+  brightness: 1,
+  tint: "#ffd8a0",
+  tintStrength: 0.25
+};
+export function normalizeGlobalEnvironment(raw: unknown): GlobalEnvironment {
+  const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  return {
+    enabled: r.enabled === true,
+    brightness: num(r.brightness, 1, 0, 2),
+    tint: typeof r.tint === "string" && /^#[0-9a-fA-F]{6}$/.test(r.tint) ? r.tint : DEFAULT_GLOBAL_ENVIRONMENT.tint,
+    tintStrength: num(r.tintStrength, 0.25, 0, 1)
+  };
+}
 export const DRAFT_KEY = `${EXTENSION_ID}/draft`;
 export const EDITOR_ID = `${EXTENSION_ID}/editor`;
 export const VERSION = "1.6.0";
