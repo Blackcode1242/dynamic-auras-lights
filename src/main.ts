@@ -54,8 +54,15 @@ function render() {
       <section id="editor" class="panel" hidden>
         <div class="sel" id="selInfo"></div>
 
+        <nav class="editor-tabs" aria-label="Categorias de configuração">
+          <button type="button" class="tab-button is-active" data-tab="effect">Essencial</button>
+          <button type="button" class="tab-button" data-tab="gradient">Gradiente</button>
+          <button type="button" class="tab-button" data-tab="geometry">Geometria</button>
+          <button type="button" class="tab-button" data-tab="advanced">Avançado</button>
+        </nav>
+
         <div class="config-layout">
-          <section class="config-section">
+          <section class="config-section" data-tab-panel="effect">
             <div class="section-heading"><span class="section-index">01</span><div><h2>Efeito</h2><p>Defina a aura que será aplicada ao elemento.</p></div></div>
             <div class="section-content">
               <div><label for="preset">Efeito / Preset</label><select id="preset">${presetOptions()}</select></div>
@@ -66,7 +73,7 @@ function render() {
             </div>
           </section>
 
-          <section class="config-section">
+          <section class="config-section" data-tab-panel="gradient">
             <div class="section-heading"><span class="section-index">02</span><div><h2>Gradiente</h2><p>Controle a transição entre as cores.</p></div></div>
             <div class="section-content">
               <div class="row align-center">
@@ -82,7 +89,7 @@ function render() {
             </div>
           </section>
 
-          <section class="config-section">
+          <section class="config-section" data-tab-panel="geometry">
             <div class="section-heading"><span class="section-index">03</span><div><h2>Geometria</h2><p>Escolha o formato e o posicionamento da aura.</p></div></div>
             <div class="section-content">
               <div class="row">
@@ -95,7 +102,7 @@ function render() {
             </div>
           </section>
 
-          <section class="config-section">
+          <section class="config-section" data-tab-panel="advanced">
             <div class="section-heading"><span class="section-index">04</span><div><h2>Ajustes visuais</h2><p>Refine a aparência e o comportamento da luz.</p></div></div>
             <div class="section-content">
               <div><label for="blend">Modo de mistura</label><select id="blend">${BLEND_MODES.map((m) => `<option value="${m.value}">${m.label}</option>`).join("")}</select></div>
@@ -105,7 +112,7 @@ function render() {
             </div>
           </section>
 
-          <section class="config-section">
+          <section class="config-section" data-tab-panel="advanced">
             <div class="section-heading"><span class="section-index">05</span><div><h2>Integrações</h2><p>Conecte a aura a outras extensões.</p></div></div>
             <div class="section-content">
               <div id="fogRow"><label for="fog">Luz no Fog (Dynamic Fog)</label><select id="fog"><option value="off">Desligada</option><option value="primary">Primária</option><option value="secondary">Secundária</option><option value="auxiliary">Auxiliar</option></select></div>
@@ -113,7 +120,7 @@ function render() {
           </section>
         </div>
 
-        <div id="scheduleRow" class="full-width">
+        <div id="scheduleRow" class="full-width" data-tab-panel="advanced">
           <label for="schedule">Quando acende (Dynamic Day Cycle)</label>
           <select id="schedule">
             <option value="always">Sempre acesa</option>
@@ -122,7 +129,7 @@ function render() {
           </select>
         </div>
 
-        <details class="mine full-width">
+        <details class="mine full-width" data-tab-panel="advanced">
           <summary>Meus presets salvos</summary>
           <select id="mine"><option value="">— meus presets —</option></select>
           <div class="btnrow" style="margin-top:6px;">
@@ -140,7 +147,7 @@ function render() {
           </div>
         </details>
 
-        <label class="switch" id="hideRow" hidden style="margin-top: 4px;">
+        <label class="switch" id="hideRow" data-tab-panel="advanced" hidden style="margin-top: 4px;">
           <input id="hide" type="checkbox" />
           <span class="track"></span>
           <span class="switch-text">Esconder o desenho (opacidade 0)</span>
@@ -229,6 +236,20 @@ function render() {
   const mineText = $<HTMLTextAreaElement>("#mineText");
   const qualityEl = $<HTMLSelectElement>("#quality");
   const fogOffsetEl = $<HTMLInputElement>("#fogOffset");
+
+  app.querySelectorAll<HTMLButtonElement>(".tab-button").forEach((button) => {
+    button.addEventListener("click", () => {
+      const tab = button.dataset.tab;
+      app.querySelectorAll<HTMLButtonElement>(".tab-button").forEach((item) => {
+        const selectedTab = item === button;
+        item.classList.toggle("is-active", selectedTab);
+        item.setAttribute("aria-selected", String(selectedTab));
+      });
+      app.querySelectorAll<HTMLElement>("[data-tab-panel]").forEach((panel) => {
+        panel.hidden = panel.dataset.tabPanel !== tab;
+      });
+    });
+  });
 
   closeEl.addEventListener("click", () => {
     OBR.popover.close(EDITOR_ID).catch(() => {});
