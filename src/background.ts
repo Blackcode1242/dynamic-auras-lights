@@ -307,7 +307,7 @@ async function sync() {
   lastGate = gateSignature(now);
 
   const locals = await OBR.scene.local.getItems();
-  await syncGlobalEnvironment(locals, items.filter((item) => isImage(item) && item.layer === "MAP"), globalEnvironment);
+  await syncGlobalEnvironment(locals, items.filter((item): item is Image => isImage(item) && item.layer === "MAP"), globalEnvironment);
   const existing = new Map<string, Item>();
   const stale: string[] = [];
   for (const local of locals) {
