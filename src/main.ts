@@ -86,7 +86,6 @@ function render() {
                 <select id="gradientMode">
                   <option value="linear">Linear</option>
                   <option value="radial">Radial</option>
-                  <option value="multicolor">Multicolorido</option>
                 </select>
               </div>
             </div>
@@ -100,18 +99,10 @@ function render() {
                 <input id="gradientColor2" type="color" />
               </div>
             </div>
-            <div class="row" id="gradientExtraColorRow">
+            <div class="row" id="gradientStop2Field">
               <div class="grow">
-                <label for="gradientColor3">Outra cor</label>
-                <input id="gradientColor3" type="color" />
-              </div>
-              <div class="grow" id="gradientStop2Field">
-                <label for="gradientStop2">Posição da cor 2 <output id="gradientStop2Value"></output></label>
+                <label for="gradientStop2">Posição da cor intermediária <output id="gradientStop2Value"></output></label>
                 <input id="gradientStop2" type="range" min="5" max="95" step="1" />
-              </div>
-              <div class="grow" id="gradientStop3Field">
-                <label for="gradientStop3">Posição da cor 3 <output id="gradientStop3Value"></output></label>
-                <input id="gradientStop3" type="range" min="5" max="95" step="1" />
               </div>
             </div>
             <div id="gradientAngleRow">
@@ -264,18 +255,13 @@ function render() {
   const gradientModeEl = $<HTMLSelectElement>("#gradientMode");
   const gradientColorEl = $<HTMLInputElement>("#gradientColor");
   const gradientColor2El = $<HTMLInputElement>("#gradientColor2");
-  const gradientColor3El = $<HTMLInputElement>("#gradientColor3");
   const gradientStop2El = $<HTMLInputElement>("#gradientStop2");
-  const gradientStop3El = $<HTMLInputElement>("#gradientStop3");
   const gradientAngleEl = $<HTMLInputElement>("#gradientAngle");
   const gradientAngleValue = $<HTMLOutputElement>("#gradientAngleValue");
   const gradientStop2Value = $<HTMLOutputElement>("#gradientStop2Value");
-  const gradientStop3Value = $<HTMLOutputElement>("#gradientStop3Value");
   const gradientAngleRow = $<HTMLElement>("#gradientAngleRow");
   const gradientMiddleColorField = $<HTMLElement>("#gradientMiddleColorField");
-  const gradientExtraColorRow = $<HTMLElement>("#gradientExtraColorRow");
   const gradientStop2Field = $<HTMLElement>("#gradientStop2Field");
-  const gradientStop3Field = $<HTMLElement>("#gradientStop3Field");
   const radiusEl = $<HTMLInputElement>("#radius");
   const shapeEl = $<HTMLSelectElement>("#shape");
   const placementEl = $<HTMLSelectElement>("#placement");
@@ -328,18 +314,15 @@ function render() {
     speedValue.value = speedEl.value;
     gradientAngleValue.value = `${gradientAngleEl.value}°`;
     gradientStop2Value.value = `${gradientStop2El.value}%`;
-    gradientStop3Value.value = `${gradientStop3El.value}%`;
     angleValue.value = `${angleEl.value}°`;
     directionValue.value = `${directionEl.value}°`;
   }
 
   function updateRows() {
     const gradientMode = gradientModeEl.value;
-    gradientAngleRow.hidden = gradientMode !== "linear" && gradientMode !== "multicolor";
+    gradientAngleRow.hidden = gradientMode !== "linear";
     gradientMiddleColorField.hidden = gradientMode === "linear";
-    gradientExtraColorRow.hidden = gradientMode !== "multicolor";
     gradientStop2Field.hidden = gradientMode === "linear";
-    gradientStop3Field.hidden = gradientMode !== "multicolor";
     const onlyAreas = selected.length > 0 && selected.every(isArea);
     const shape = shapeEl.value;
     coneRow.hidden = onlyAreas || shape !== "cone";
@@ -356,10 +339,8 @@ function render() {
     gradientModeEl.value = cfg.gradientMode;
     gradientColorEl.value = cfg.gradientColor;
     gradientColor2El.value = cfg.gradientColor2;
-    gradientColor3El.value = cfg.gradientColor3;
     gradientAngleEl.value = String(cfg.gradientAngle);
     gradientStop2El.value = String(Math.round(cfg.gradientStop2 * 100));
-    gradientStop3El.value = String(Math.round(cfg.gradientStop3 * 100));
     radiusEl.value = String(cfg.radius);
     shapeEl.value = cfg.shape;
     placementEl.value = cfg.placement;
@@ -381,13 +362,11 @@ function render() {
       preset: presetEl.value as Preset,
       color: colorEl.value,
       gradientEnabled: gradientEnabledEl.checked,
-      gradientMode: gradientModeEl.value as "linear" | "radial" | "multicolor",
+      gradientMode: gradientModeEl.value as "linear" | "radial",
       gradientColor: gradientColorEl.value,
       gradientColor2: gradientColor2El.value,
-      gradientColor3: gradientColor3El.value,
       gradientAngle: Number(gradientAngleEl.value),
       gradientStop2: Number(gradientStop2El.value) / 100,
-      gradientStop3: Number(gradientStop3El.value) / 100,
       radius: Number(radiusEl.value),
       shape: shapeEl.value as Shape,
       placement: placementEl.value as Placement,
@@ -549,7 +528,7 @@ function render() {
     commit();
   }
 
-  for (const el of [colorEl, gradientColorEl, gradientColor2El, gradientColor3El, gradientAngleEl, gradientStop2El, gradientStop3El, radiusEl, softnessEl, intensityEl, speedEl, angleEl, widthEl, directionEl]) el.addEventListener("input", onEdit);
+  for (const el of [colorEl, gradientColorEl, gradientColor2El, gradientAngleEl, gradientStop2El, radiusEl, softnessEl, intensityEl, speedEl, angleEl, widthEl, directionEl]) el.addEventListener("input", onEdit);
   for (const el of [gradientEnabledEl, gradientModeEl, shapeEl, placementEl, blendEl, fogEl, scheduleEl]) el.addEventListener("change", onEdit);
 
   function renderMine() {
