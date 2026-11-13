@@ -5,7 +5,6 @@ on:
       - prototype/ambient-gradient
     paths-ignore:
       - "preview-site/**"
-      - ".github/workflows/prototype-preview.yml"
   workflow_dispatch:
 permissions:
   contents: write
