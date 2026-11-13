@@ -17,7 +17,6 @@ const SIG = `${EXTENSION_ID}/signature`;
 const FOGTAG = `${EXTENSION_ID}/fog-for`;
 const FOGSIG = `${EXTENSION_ID}/fog-signature`;
 const FOGKIND = `${EXTENSION_ID}/fog-kind`;
-
 function assetUrl(file: string) {
   // Caminho absoluto: o Owlbear carrega ícones fora do iframe da extensão.
   return new URL(file, document.baseURI).href;
@@ -39,7 +38,13 @@ function effectProps(token: Image, cfg: AuraConfig, dpi: number, effectRotation:
     blendMode: cfg.blendMode,
     uniforms: [
       { name: "auraColor", value: hexToRgb(cfg.color) },
-      { name: "intensity", value: cfg.intensity },
+      { name: "gradientColor", value: hexToRgb(cfg.gradientColor) },
+      { name: "gradientColor2", value: hexToRgb(cfg.gradientColor2) },
+            { name: "gradientEnabled", value: cfg.gradientEnabled ? 1 : 0 },
+      { name: "gradientMode", value: cfg.gradientMode === "radial" ? 1 : 0 },
+      { name: "gradientAngle", value: (cfg.gradientAngle * Math.PI) / 180 },
+      { name: "gradientStop2", value: cfg.gradientStop2 },
+            { name: "intensity", value: cfg.intensity },
       { name: "speed", value: cfg.speed },
       { name: "softness", value: cfg.softness },
       { name: "shape", value: u.shapeId },
@@ -87,7 +92,13 @@ async function areaProps(item: Area, cfg: AuraConfig, dpi: number, quality: Qual
     blendMode: cfg.blendMode,
     uniforms: [
       { name: "auraColor", value: hexToRgb(cfg.color) },
-      { name: "intensity", value: cfg.intensity },
+      { name: "gradientColor", value: hexToRgb(cfg.gradientColor) },
+      { name: "gradientColor2", value: hexToRgb(cfg.gradientColor2) },
+            { name: "gradientEnabled", value: cfg.gradientEnabled ? 1 : 0 },
+      { name: "gradientMode", value: cfg.gradientMode === "radial" ? 1 : 0 },
+      { name: "gradientAngle", value: (cfg.gradientAngle * Math.PI) / 180 },
+      { name: "gradientStop2", value: cfg.gradientStop2 },
+            { name: "intensity", value: cfg.intensity },
       { name: "speed", value: cfg.speed },
       { name: "softness", value: cfg.softness }
     ],
@@ -189,6 +200,7 @@ async function syncFog(locals: Item[], wanted: FogWanted, dpi: number, quality: 
   }
   writeStatus({ fog: wanted.size ? `${wanted.size} luz(es) no fog` : "nenhuma luz de fog ligada" });
 }
+
 
 // Relógio do Dynamic Day Cycle (metadados da cena). null = não usado: tudo continua sempre aceso.
 let clock: ClockState | null = null;
@@ -457,9 +469,15 @@ function start() {
   unsubscribers = [
     OBR.scene.items.onChange(() => queueSync()),
     OBR.scene.grid.onChange(() => queueSync()),
-    OBR.scene.onMetadataChange((meta) => { clock = readClock(meta); queueSync(); })
+    OBR.scene.onMetadataChange((meta) => {
+      clock = readClock(meta);
+      queueSync();
+    })
   ];
-  OBR.scene.getMetadata().then((meta) => { clock = readClock(meta); queueSync(); }).catch(() => queueSync());
+  OBR.scene.getMetadata().then((meta) => {
+    clock = readClock(meta);
+    queueSync();
+  }).catch(() => queueSync());
 }
 function stop() {
   for (const unsubscribe of unsubscribers) unsubscribe();
