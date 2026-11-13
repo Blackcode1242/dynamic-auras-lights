@@ -56,7 +56,8 @@ function render() {
 
         <div class="dashboard-grid">
           <!-- Coluna Esquerda -->
-          <div style="display: grid; gap: 10px;">
+          <div class="settings-column">
+            <div class="section-title">Efeito e cores</div>
             <div>
               <label for="preset">Efeito / Preset</label>
               <select id="preset">${presetOptions()}</select>
@@ -73,6 +74,7 @@ function render() {
               </div>
             </div>
 
+            <div class="section-title section-spaced">Gradiente</div>
             <div class="row">
               <div class="grow">
                 <label class="switch" style="margin: 4px 0;">
@@ -110,6 +112,7 @@ function render() {
               <input id="gradientAngle" type="range" min="0" max="360" step="5" />
             </div>
 
+            <div class="section-title section-spaced">Forma e posição</div>
             <div class="row">
               <div class="grow" id="shapeField">
                 <label for="shape">Formato</label>
@@ -146,7 +149,8 @@ function render() {
           </div>
 
           <!-- Coluna Direita -->
-          <div style="display: grid; gap: 10px;">
+          <div class="settings-column">
+            <div class="section-title">Aparência e movimento</div>
             <div>
               <label for="blend">Modo de mistura</label>
               <select id="blend">
@@ -169,6 +173,7 @@ function render() {
               <input id="speed" type="range" min="0" max="8" step="0.1" />
             </div>
 
+            <div class="section-title section-spaced">Integrações</div>
             <div id="fogRow">
               <label for="fog">Luz no Fog (Dynamic Fog)</label>
               <select id="fog">
