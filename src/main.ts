@@ -74,6 +74,24 @@ function render() {
             </div>
 
             <div class="row">
+              <div class="grow">
+                <label class="switch" style="margin: 4px 0;">
+                  <input id="gradientEnabled" type="checkbox" />
+                  <span class="track"></span>
+                  <span class="switch-text">Gradiente</span>
+                </label>
+              </div>
+              <div class="grow">
+                <label for="gradientColor">Cor final</label>
+                <input id="gradientColor" type="color" />
+              </div>
+            </div>
+            <div id="gradientAngleRow">
+              <label for="gradientAngle">Direção do gradiente <output id="gradientAngleValue"></output></label>
+              <input id="gradientAngle" type="range" min="0" max="360" step="5" />
+            </div>
+
+            <div class="row">
               <div class="grow" id="shapeField">
                 <label for="shape">Formato</label>
                 <select id="shape">
@@ -214,6 +232,10 @@ function render() {
   const activeEl = $<HTMLInputElement>("#active");
   const presetEl = $<HTMLSelectElement>("#preset");
   const colorEl = $<HTMLInputElement>("#color");
+  const gradientEnabledEl = $<HTMLInputElement>("#gradientEnabled");
+  const gradientColorEl = $<HTMLInputElement>("#gradientColor");
+  const gradientAngleEl = $<HTMLInputElement>("#gradientAngle");
+  const gradientAngleValue = $<HTMLOutputElement>("#gradientAngleValue");
   const radiusEl = $<HTMLInputElement>("#radius");
   const shapeEl = $<HTMLSelectElement>("#shape");
   const placementEl = $<HTMLSelectElement>("#placement");
@@ -264,6 +286,7 @@ function render() {
     softnessValue.value = `${Math.round(Number(softnessEl.value) * 100)}%`;
     intensityValue.value = `${Math.round(Number(intensityEl.value) * 100)}%`;
     speedValue.value = speedEl.value;
+    gradientAngleValue.value = `${gradientAngleEl.value}°`;
     angleValue.value = `${angleEl.value}°`;
     directionValue.value = `${directionEl.value}°`;
   }
@@ -281,6 +304,9 @@ function render() {
   function writeUi(cfg: AuraConfig) {
     presetEl.value = cfg.preset;
     colorEl.value = cfg.color;
+    gradientEnabledEl.checked = cfg.gradientEnabled;
+    gradientColorEl.value = cfg.gradientColor;
+    gradientAngleEl.value = String(cfg.gradientAngle);
     radiusEl.value = String(cfg.radius);
     shapeEl.value = cfg.shape;
     placementEl.value = cfg.placement;
@@ -301,6 +327,9 @@ function render() {
     return normalizeConfig({
       preset: presetEl.value as Preset,
       color: colorEl.value,
+      gradientEnabled: gradientEnabledEl.checked,
+      gradientColor: gradientColorEl.value,
+      gradientAngle: Number(gradientAngleEl.value),
       radius: Number(radiusEl.value),
       shape: shapeEl.value as Shape,
       placement: placementEl.value as Placement,
@@ -462,8 +491,8 @@ function render() {
     commit();
   }
 
-  for (const el of [colorEl, radiusEl, softnessEl, intensityEl, speedEl, angleEl, widthEl, directionEl]) el.addEventListener("input", onEdit);
-  for (const el of [shapeEl, placementEl, blendEl, fogEl, scheduleEl]) el.addEventListener("change", onEdit);
+  for (const el of [colorEl, gradientColorEl, gradientAngleEl, radiusEl, softnessEl, intensityEl, speedEl, angleEl, widthEl, directionEl]) el.addEventListener("input", onEdit);
+  for (const el of [gradientEnabledEl, shapeEl, placementEl, blendEl, fogEl, scheduleEl]) el.addEventListener("change", onEdit);
 
   function renderMine() {
     mineEl.innerHTML = "";
