@@ -54,7 +54,7 @@ jobs:
           const manifest = JSON.parse(fs.readFileSync(path, 'utf8'));
           const base = 'https://blackcode1242.github.io/dynamic-auras-lights/preview/';
           manifest.name = 'Dynamic Auras & Lights (Preview)';
-          manifest.version = '1.6.0-preview';
+          manifest.version = '1.6.1-preview';
           manifest.icon = base + 'icon.svg';
           manifest.background_url = base + 'background.html';
           manifest.action.icon = base + 'icon.svg';
