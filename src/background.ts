@@ -2,11 +2,11 @@ import OBR, { buildEffect, isImage, isShape } from "@owlbear-rodeo/sdk";
 import * as SDK from "@owlbear-rodeo/sdk";
 import type { Image, Item, Layer } from "@owlbear-rodeo/sdk";
 import {
-  AURA_KEY, EDITOR_ID, EXTENSION_ID, SETTINGS_KEY, areaGeometry, areaPolygon, fogParams, getAura,
-  getSettings, hexToRgb, isArea, isAuraTarget, isDirectional, loadDraft, rotate, shaderFor,
+  AURA_KEY, DEFAULT_GLOBAL_ENVIRONMENT, EDITOR_ID, EXTENSION_ID, GLOBAL_KEY, SETTINGS_KEY, areaGeometry, areaPolygon, fogParams, getAura,
+  getSettings, hexToRgb, isArea, isAuraTarget, isDirectional, loadDraft, normalizeGlobalEnvironment, rotate, shaderFor,
   showDrawing, tokenCenter, tokenShapeUniforms, USE_SIDEBAR, VERSION, writeSharedSelection, writeStatus
 } from "./shared";
-import type { Area, AuraConfig, Quality } from "./shared";
+import type { Area, AuraConfig, GlobalEnvironment, Quality } from "./shared";
 import { lightIsOn, readClock } from "./clock";
 import type { ClockState, Schedule } from "./clock";
 
@@ -17,6 +17,23 @@ const SIG = `${EXTENSION_ID}/signature`;
 const FOGTAG = `${EXTENSION_ID}/fog-for`;
 const FOGSIG = `${EXTENSION_ID}/fog-signature`;
 const FOGKIND = `${EXTENSION_ID}/fog-kind`;
+const GLOBAL_TAG = `${EXTENSION_ID}/global-effect-for`;
+const GLOBAL_SIG = `${EXTENSION_ID}/global-effect-signature`;
+
+const GLOBAL_SHADER = `
+  uniform shader scene;
+  uniform mat3 modelView;
+  uniform float brightness;
+  uniform vec3 tint;
+  uniform float tintStrength;
+  half4 main(float2 coord) {
+    vec2 uv = (vec3(coord, 1.0) * modelView).xy;
+    half4 source = scene.eval(uv);
+    vec3 base = vec3(source.rgb) * brightness;
+    vec3 graded = mix(base, tint, tintStrength);
+    return half4(graded, source.a);
+  }
+`;
 
 function assetUrl(file: string) {
   // Caminho absoluto: o Owlbear carrega ícones fora do iframe da extensão.
@@ -196,8 +213,69 @@ async function syncFog(locals: Item[], wanted: FogWanted, dpi: number, quality: 
   writeStatus({ fog: wanted.size ? `${wanted.size} luz(es) no fog` : "nenhuma luz de fog ligada" });
 }
 
+
+async function syncGlobalEnvironment(locals: Item[], maps: Image[], config: GlobalEnvironment) {
+  const active = config.enabled && maps.length > 0;
+  const existing = new Map<string, Item>();
+  const stale: string[] = [];
+  for (const local of locals) {
+    const mapId = local.metadata[GLOBAL_TAG];
+    if (typeof mapId !== "string") continue;
+    if (active && maps.some((map) => map.id === mapId) && !existing.has(mapId)) existing.set(mapId, local);
+    else stale.push(local.id);
+  }
+  if (stale.length) await OBR.scene.local.deleteItems(stale);
+  if (!active) {
+    writeStatus({ ambiente: config.enabled ? "aguardando imagem na camada Mapa" : "desligado" });
+    return;
+  }
+  const tint = hexToRgb(config.tint);
+  const sig = JSON.stringify([config.enabled, config.brightness, config.tint, config.tintStrength]);
+  const toAdd: Item[] = [];
+  const toUpdate: Item[] = [];
+  for (const map of maps) {
+    const effect = existing.get(map.id);
+    if (!effect) {
+      const created = buildEffect()
+        .effectType("ATTACHMENT")
+        .attachedTo(map.id)
+        .layer("POST_PROCESS")
+        .locked(true)
+        .disableHit(true)
+        .uniforms([
+          { name: "brightness", value: config.brightness },
+          { name: "tint", value: tint },
+          { name: "tintStrength", value: config.tintStrength }
+        ])
+        .sksl(GLOBAL_SHADER)
+        .metadata({ [GLOBAL_TAG]: map.id, [GLOBAL_SIG]: sig })
+        .build();
+      toAdd.push(created);
+    } else if (effect.metadata[GLOBAL_SIG] !== sig) {
+      toUpdate.push(effect);
+    }
+  }
+  if (toAdd.length) await OBR.scene.local.addItems(toAdd);
+  if (toUpdate.length) {
+    await OBR.scene.local.updateItems(toUpdate, (drafts) => {
+      for (const draft of drafts) {
+        const fx = draft as any;
+        fx.uniforms = [
+          { name: "brightness", value: config.brightness },
+          { name: "tint", value: tint },
+          { name: "tintStrength", value: config.tintStrength }
+        ];
+        fx.sksl = GLOBAL_SHADER;
+        fx.metadata[GLOBAL_SIG] = sig;
+      }
+    });
+  }
+  writeStatus({ ambiente: `ativo em ${maps.length} mapa(s)` });
+}
+
 // Relógio do Dynamic Day Cycle (metadados da cena). null = não usado: tudo continua sempre aceso.
 let clock: ClockState | null = null;
+let globalEnvironment: GlobalEnvironment = { ...DEFAULT_GLOBAL_ENVIRONMENT };
 // Itens com agenda e o último resultado aplicado; o intervalo abaixo só dispara sync quando algum muda.
 let gated: { id: string; schedule: Schedule }[] = [];
 let lastGate = "";
@@ -229,6 +307,7 @@ async function sync() {
   lastGate = gateSignature(now);
 
   const locals = await OBR.scene.local.getItems();
+  await syncGlobalEnvironment(locals, items.filter((item) => isImage(item) && item.layer === "MAP"), globalEnvironment);
   const existing = new Map<string, Item>();
   const stale: string[] = [];
   for (const local of locals) {
@@ -463,14 +542,23 @@ function start() {
   unsubscribers = [
     OBR.scene.items.onChange(() => queueSync()),
     OBR.scene.grid.onChange(() => queueSync()),
-    OBR.scene.onMetadataChange((meta) => { clock = readClock(meta); queueSync(); })
+    OBR.scene.onMetadataChange((meta) => {
+      clock = readClock(meta);
+      globalEnvironment = normalizeGlobalEnvironment(meta[GLOBAL_KEY]);
+      queueSync();
+    })
   ];
-  OBR.scene.getMetadata().then((meta) => { clock = readClock(meta); queueSync(); }).catch(() => queueSync());
+  OBR.scene.getMetadata().then((meta) => {
+    clock = readClock(meta);
+    globalEnvironment = normalizeGlobalEnvironment(meta[GLOBAL_KEY]);
+    queueSync();
+  }).catch(() => queueSync());
 }
 function stop() {
   for (const unsubscribe of unsubscribers) unsubscribe();
   unsubscribers = [];
   clock = null;
+  globalEnvironment = { ...DEFAULT_GLOBAL_ENVIRONMENT };
   gated = [];
   lastGate = "";
 }
