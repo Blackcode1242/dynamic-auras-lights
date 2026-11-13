@@ -54,97 +54,71 @@ function render() {
       <section id="editor" class="panel" hidden>
         <div class="sel" id="selInfo"></div>
 
-        <div class="dashboard-grid">
-          <!-- Coluna Esquerda -->
-          <div style="display: grid; gap: 10px;">
-            <div>
-              <label for="preset">Efeito / Preset</label>
-              <select id="preset">${presetOptions()}</select>
-            </div>
+        <nav class="editor-tabs" aria-label="Categorias de configuração">
+          <button type="button" class="tab-button is-active" data-tab="effect">Efeitos</button>
+          <button type="button" class="tab-button" data-tab="advanced">Avançado</button>
+        </nav>
 
-            <div class="row">
-              <div class="grow">
-                <label for="color">Cor</label>
-                <input id="color" type="color" />
-              </div>
-              <div class="grow">
-                <label for="radius" id="radiusLabel">Raio</label>
-                <input id="radius" type="number" min="0.5" max="20" step="0.5" />
+        <div class="config-layout">
+          <section class="config-section" data-tab-panel="effect">
+            <div class="section-heading"><h2>Efeito</h2></div>
+            <div class="section-content">
+              <div><label for="preset">Efeito / Preset</label><select id="preset">${presetOptions()}</select></div>
+              <div class="row">
+                <div class="grow"><label for="color">Cor principal</label><input id="color" type="color" /></div>
+                <div class="grow"><label for="radius" id="radiusLabel">Raio</label><input id="radius" type="number" min="0.5" max="20" step="0.5" /></div>
               </div>
             </div>
+          </section>
 
-            <div class="row">
-              <div class="grow" id="shapeField">
-                <label for="shape">Formato</label>
-                <select id="shape">
-                  <option value="circle">Círculo</option>
-                  <option value="square">Quadrado</option>
-                  <option value="cone">Cone</option>
-                  <option value="line">Linha</option>
-                </select>
+          <section class="config-section" data-tab-panel="effect">
+            <div class="section-heading"><h2>Gradiente</h2></div>
+            <div class="section-content">
+              <div class="row align-center">
+                <div class="grow"><label class="switch"><input id="gradientEnabled" type="checkbox" /><span class="track"></span><span class="switch-text">Ativar gradiente</span></label></div>
+                <div class="grow"><label for="gradientMode">Tipo</label><select id="gradientMode"><option value="linear">Linear</option><option value="radial">Radial</option></select></div>
               </div>
-              <div class="grow">
-                <label for="placement">Posição</label>
-                <select id="placement">
-                  <option value="below">Abaixo</option>
-                  <option value="above">Acima</option>
-                </select>
+              <div class="row">
+                <div class="grow"><label for="gradientColor">Cor final / borda</label><input id="gradientColor" type="color" /></div>
+                <div class="grow" id="gradientMiddleColorField"><label for="gradientColor2">Cor intermediária</label><input id="gradientColor2" type="color" /></div>
               </div>
+              <div class="row" id="gradientStop2Field"><div class="grow"><label for="gradientStop2">Posição da cor intermediária <output id="gradientStop2Value"></output></label><input id="gradientStop2" type="range" min="5" max="95" step="1" /></div></div>
+              <div id="gradientAngleRow"><label for="gradientAngle">Direção do gradiente <output id="gradientAngleValue"></output></label><input id="gradientAngle" type="range" min="0" max="360" step="5" /></div>
             </div>
+          </section>
 
-            <div id="coneRow" hidden>
-              <label for="angle">Abertura do cone <output id="angleValue"></output></label>
-              <input id="angle" type="range" min="10" max="170" step="1" />
+          <section class="config-section" data-tab-panel="advanced">
+            <div class="section-heading"><h2>Geometria</h2></div>
+            <div class="section-content">
+              <div class="row">
+                <div class="grow" id="shapeField"><label for="shape">Formato</label><select id="shape"><option value="circle">Círculo</option><option value="square">Quadrado</option><option value="cone">Cone</option><option value="line">Linha</option></select></div>
+                <div class="grow"><label for="placement">Posição</label><select id="placement"><option value="below">Abaixo</option><option value="above">Acima</option></select></div>
+              </div>
+              <div id="coneRow"><label for="angle">Abertura do cone <output id="angleValue"></output></label><input id="angle" type="range" min="10" max="170" step="1" /></div>
+              <div id="lineRow"><label for="width">Largura da linha</label><input id="width" type="number" min="0.1" max="10" step="0.1" /></div>
+              <div id="dirRow"><label for="direction">Direção <output id="directionValue"></output></label><input id="direction" type="range" min="-180" max="180" step="5" /></div>
             </div>
+          </section>
 
-            <div id="lineRow" hidden>
-              <label for="width">Largura da linha</label>
-              <input id="width" type="number" min="0.1" max="10" step="0.1" />
+          <section class="config-section" data-tab-panel="advanced">
+            <div class="section-heading"><h2>Ajustes visuais</h2></div>
+            <div class="section-content">
+              <div><label for="blend">Modo de mistura</label><select id="blend">${BLEND_MODES.map((m) => `<option value="${m.value}">${m.label}</option>`).join("")}</select></div>
+              <div><label for="softness">Suavidade <output id="softnessValue"></output></label><input id="softness" type="range" min="0" max="1" step="0.01" /></div>
+              <div><label for="intensity">Intensidade <output id="intensityValue"></output></label><input id="intensity" type="range" min="0.1" max="1.5" step="0.01" /></div>
+              <div><label for="speed">Velocidade <output id="speedValue"></output></label><input id="speed" type="range" min="0" max="8" step="0.1" /></div>
             </div>
+          </section>
 
-            <div id="dirRow" hidden>
-              <label for="direction">Direção <output id="directionValue"></output></label>
-              <input id="direction" type="range" min="-180" max="180" step="5" />
+          <section class="config-section" data-tab-panel="advanced">
+            <div class="section-heading"><h2>Integrações</h2></div>
+            <div class="section-content">
+              <div id="fogRow"><label for="fog">Luz no Fog (Dynamic Fog)</label><select id="fog"><option value="off">Desligada</option><option value="primary">Primária</option><option value="secondary">Secundária</option><option value="auxiliary">Auxiliar</option></select></div>
             </div>
-          </div>
-
-          <!-- Coluna Direita -->
-          <div style="display: grid; gap: 10px;">
-            <div>
-              <label for="blend">Modo de mistura</label>
-              <select id="blend">
-                ${BLEND_MODES.map((m) => `<option value="${m.value}">${m.label}</option>`).join("")}
-              </select>
-            </div>
-
-            <div>
-              <label for="softness">Suavidade <output id="softnessValue"></output></label>
-              <input id="softness" type="range" min="0" max="1" step="0.01" />
-            </div>
-
-            <div>
-              <label for="intensity">Intensidade <output id="intensityValue"></output></label>
-              <input id="intensity" type="range" min="0.1" max="1.5" step="0.01" />
-            </div>
-
-            <div>
-              <label for="speed">Velocidade <output id="speedValue"></output></label>
-              <input id="speed" type="range" min="0" max="8" step="0.1" />
-            </div>
-
-            <div id="fogRow">
-              <label for="fog">Luz no Fog (Dynamic Fog)</label>
-              <select id="fog">
-                <option value="off">Desligada</option>
-                <option value="primary">Primária</option>
-                <option value="secondary">Secundária</option>
-                <option value="auxiliary">Auxiliar</option>
-              </select>
-            </div>
-          </div>
+          </section>
         </div>
 
-        <div id="scheduleRow" class="full-width">
+        <div id="scheduleRow" class="full-width" data-tab-panel="advanced">
           <label for="schedule">Quando acende (Dynamic Day Cycle)</label>
           <select id="schedule">
             <option value="always">Sempre acesa</option>
@@ -153,7 +127,7 @@ function render() {
           </select>
         </div>
 
-        <details class="mine full-width">
+        <details class="mine full-width" data-tab-panel="advanced">
           <summary>Meus presets salvos</summary>
           <select id="mine"><option value="">— meus presets —</option></select>
           <div class="btnrow" style="margin-top:6px;">
@@ -214,6 +188,17 @@ function render() {
   const activeEl = $<HTMLInputElement>("#active");
   const presetEl = $<HTMLSelectElement>("#preset");
   const colorEl = $<HTMLInputElement>("#color");
+  const gradientEnabledEl = $<HTMLInputElement>("#gradientEnabled");
+  const gradientModeEl = $<HTMLSelectElement>("#gradientMode");
+  const gradientColorEl = $<HTMLInputElement>("#gradientColor");
+  const gradientColor2El = $<HTMLInputElement>("#gradientColor2");
+  const gradientStop2El = $<HTMLInputElement>("#gradientStop2");
+  const gradientAngleEl = $<HTMLInputElement>("#gradientAngle");
+  const gradientAngleValue = $<HTMLOutputElement>("#gradientAngleValue");
+  const gradientStop2Value = $<HTMLOutputElement>("#gradientStop2Value");
+  const gradientAngleRow = $<HTMLElement>("#gradientAngleRow");
+  const gradientMiddleColorField = $<HTMLElement>("#gradientMiddleColorField");
+  const gradientStop2Field = $<HTMLElement>("#gradientStop2Field");
   const radiusEl = $<HTMLInputElement>("#radius");
   const shapeEl = $<HTMLSelectElement>("#shape");
   const placementEl = $<HTMLSelectElement>("#placement");
@@ -250,6 +235,21 @@ function render() {
   const qualityEl = $<HTMLSelectElement>("#quality");
   const fogOffsetEl = $<HTMLInputElement>("#fogOffset");
 
+  app.querySelectorAll<HTMLButtonElement>(".tab-button").forEach((button) => {
+    button.addEventListener("click", () => {
+      const tab = button.dataset.tab;
+      app.querySelectorAll<HTMLButtonElement>(".tab-button").forEach((item) => {
+        const selectedTab = item === button;
+        item.classList.toggle("is-active", selectedTab);
+        item.setAttribute("aria-selected", String(selectedTab));
+      });
+      app.querySelectorAll<HTMLElement>("[data-tab-panel]").forEach((panel) => {
+        panel.hidden = panel.dataset.tabPanel !== tab;
+      });
+    });
+  });
+  app.querySelector<HTMLButtonElement>('.tab-button[data-tab="effect"]')?.click();
+
   closeEl.addEventListener("click", () => {
     OBR.popover.close(EDITOR_ID).catch(() => {});
     OBR.action.close().catch(() => {});
@@ -264,11 +264,17 @@ function render() {
     softnessValue.value = `${Math.round(Number(softnessEl.value) * 100)}%`;
     intensityValue.value = `${Math.round(Number(intensityEl.value) * 100)}%`;
     speedValue.value = speedEl.value;
+    gradientAngleValue.value = `${gradientAngleEl.value}°`;
+    gradientStop2Value.value = `${gradientStop2El.value}%`;
     angleValue.value = `${angleEl.value}°`;
     directionValue.value = `${directionEl.value}°`;
   }
 
   function updateRows() {
+    const gradientMode = gradientModeEl.value;
+    gradientAngleRow.hidden = gradientMode !== "linear";
+    gradientMiddleColorField.hidden = gradientMode === "linear";
+    gradientStop2Field.hidden = gradientMode === "linear";
     const onlyAreas = selected.length > 0 && selected.every(isArea);
     const shape = shapeEl.value;
     coneRow.hidden = onlyAreas || shape !== "cone";
@@ -281,6 +287,12 @@ function render() {
   function writeUi(cfg: AuraConfig) {
     presetEl.value = cfg.preset;
     colorEl.value = cfg.color;
+    gradientEnabledEl.checked = cfg.gradientEnabled;
+    gradientModeEl.value = cfg.gradientMode;
+    gradientColorEl.value = cfg.gradientColor;
+    gradientColor2El.value = cfg.gradientColor2;
+    gradientAngleEl.value = String(cfg.gradientAngle);
+    gradientStop2El.value = String(Math.round(cfg.gradientStop2 * 100));
     radiusEl.value = String(cfg.radius);
     shapeEl.value = cfg.shape;
     placementEl.value = cfg.placement;
@@ -301,6 +313,12 @@ function render() {
     return normalizeConfig({
       preset: presetEl.value as Preset,
       color: colorEl.value,
+      gradientEnabled: gradientEnabledEl.checked,
+      gradientMode: gradientModeEl.value as "linear" | "radial",
+      gradientColor: gradientColorEl.value,
+      gradientColor2: gradientColor2El.value,
+      gradientAngle: Number(gradientAngleEl.value),
+      gradientStop2: Number(gradientStop2El.value) / 100,
       radius: Number(radiusEl.value),
       shape: shapeEl.value as Shape,
       placement: placementEl.value as Placement,
@@ -462,8 +480,8 @@ function render() {
     commit();
   }
 
-  for (const el of [colorEl, radiusEl, softnessEl, intensityEl, speedEl, angleEl, widthEl, directionEl]) el.addEventListener("input", onEdit);
-  for (const el of [shapeEl, placementEl, blendEl, fogEl, scheduleEl]) el.addEventListener("change", onEdit);
+  for (const el of [colorEl, gradientColorEl, gradientColor2El, gradientAngleEl, gradientStop2El, radiusEl, softnessEl, intensityEl, speedEl, angleEl, widthEl, directionEl]) el.addEventListener("input", onEdit);
+  for (const el of [gradientEnabledEl, gradientModeEl, shapeEl, placementEl, blendEl, fogEl, scheduleEl]) el.addEventListener("change", onEdit);
 
   function renderMine() {
     mineEl.innerHTML = "";
