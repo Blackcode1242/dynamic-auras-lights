@@ -101,6 +101,9 @@ export const BLEND_MODES: { value: BlendModeName; label: string }[] = [
 export type AuraConfig = {
   preset: Preset;
   color: string;
+  gradientEnabled: boolean;
+  gradientColor: string;
+  gradientAngle: number;
   radius: number;
   intensity: number;
   speed: number;
@@ -118,6 +121,9 @@ export type AuraConfig = {
 export const DEFAULT_CONFIG: AuraConfig = {
   preset: "torch",
   color: PRESETS.torch.color,
+  gradientEnabled: false,
+  gradientColor: "#ffffff",
+  gradientAngle: 90,
   radius: 3,
   intensity: PRESETS.torch.intensity,
   speed: PRESETS.torch.speed,
@@ -149,6 +155,9 @@ export function normalizeConfig(raw: unknown): AuraConfig {
   return {
     preset,
     color,
+    gradientEnabled: r.gradientEnabled === true,
+    gradientColor: typeof r.gradientColor === "string" && /^#[0-9a-fA-F]{6}$/.test(r.gradientColor) ? r.gradientColor : DEFAULT_CONFIG.gradientColor,
+    gradientAngle: num(r.gradientAngle, DEFAULT_CONFIG.gradientAngle, 0, 360),
     radius: num(r.radius, DEFAULT_CONFIG.radius, 0, 20),
     intensity: num(r.intensity, PRESETS[preset].intensity, 0.1, 1.5),
     speed: num(r.speed, PRESETS[preset].speed, 0, 8),
@@ -711,6 +720,9 @@ function buildShader(presetKey: Preset, extraUniforms: string, helpers: string, 
     uniform float speed;
     uniform float softness;
     uniform vec3 auraColor;
+    uniform vec3 gradientColor;
+    uniform float gradientEnabled;
+    uniform float gradientAngle;
     ${extraUniforms}
     ${MOTION_FUNCTIONS}
     ${helpers}
@@ -732,7 +744,10 @@ function buildShader(presetKey: Preset, extraUniforms: string, helpers: string, 
 
       float motion = ${MOTION_EXPR[def.motion]};
       float a = clamp(edge * intensity * motion, 0.0, 1.0);
-      vec3 color = mix(auraColor, vec3(1.0), core * coreMix);
+      vec2 gradientDir = vec2(cos(gradientAngle), sin(gradientAngle));
+      float gradientT = clamp(0.5 + 0.5 * dot(p, gradientDir), 0.0, 1.0);
+      vec3 baseColor = mix(auraColor, gradientColor, gradientEnabled * gradientT);
+      vec3 color = mix(baseColor, vec3(1.0), core * coreMix);
 
       // Cor pré-multiplicada pelo alfa: necessário para os modos de mistura funcionarem direito.
       return half4(color * a, a);
