@@ -101,6 +101,12 @@ export const BLEND_MODES: { value: BlendModeName; label: string }[] = [
 export type AuraConfig = {
   preset: Preset;
   color: string;
+  gradientEnabled: boolean;
+  gradientMode: "linear" | "radial";
+  gradientColor: string;
+  gradientColor2: string;
+  gradientAngle: number;
+  gradientStop2: number;
   radius: number;
   intensity: number;
   speed: number;
@@ -118,6 +124,12 @@ export type AuraConfig = {
 export const DEFAULT_CONFIG: AuraConfig = {
   preset: "torch",
   color: PRESETS.torch.color,
+  gradientEnabled: false,
+  gradientMode: "linear",
+  gradientColor: "#ffffff",
+  gradientColor2: "#ff9a00",
+  gradientAngle: 90,
+  gradientStop2: 0.33,
   radius: 3,
   intensity: PRESETS.torch.intensity,
   speed: PRESETS.torch.speed,
@@ -149,6 +161,12 @@ export function normalizeConfig(raw: unknown): AuraConfig {
   return {
     preset,
     color,
+    gradientEnabled: r.gradientEnabled === true,
+    gradientMode: r.gradientMode === "radial" ? "radial" : "linear",
+    gradientColor: typeof r.gradientColor === "string" && /^#[0-9a-fA-F]{6}$/.test(r.gradientColor) ? r.gradientColor : DEFAULT_CONFIG.gradientColor,
+    gradientColor2: typeof r.gradientColor2 === "string" && /^#[0-9a-fA-F]{6}$/.test(r.gradientColor2) ? r.gradientColor2 : DEFAULT_CONFIG.gradientColor2,
+    gradientAngle: num(r.gradientAngle, DEFAULT_CONFIG.gradientAngle, 0, 360),
+    gradientStop2: num(r.gradientStop2, DEFAULT_CONFIG.gradientStop2, 0.05, 0.95),
     radius: num(r.radius, DEFAULT_CONFIG.radius, 0, 20),
     intensity: num(r.intensity, PRESETS[preset].intensity, 0.1, 1.5),
     speed: num(r.speed, PRESETS[preset].speed, 0, 8),
@@ -711,6 +729,12 @@ function buildShader(presetKey: Preset, extraUniforms: string, helpers: string, 
     uniform float speed;
     uniform float softness;
     uniform vec3 auraColor;
+    uniform vec3 gradientColor;
+    uniform vec3 gradientColor2;
+    uniform float gradientEnabled;
+    uniform float gradientMode;
+    uniform float gradientAngle;
+    uniform float gradientStop2;
     ${extraUniforms}
     ${MOTION_FUNCTIONS}
     ${helpers}
@@ -732,7 +756,20 @@ function buildShader(presetKey: Preset, extraUniforms: string, helpers: string, 
 
       float motion = ${MOTION_EXPR[def.motion]};
       float a = clamp(edge * intensity * motion, 0.0, 1.0);
-      vec3 color = mix(auraColor, vec3(1.0), core * coreMix);
+      vec2 gradientDir = vec2(cos(gradientAngle), sin(gradientAngle));
+      float gradientT = clamp(0.5 + 0.5 * dot(p, gradientDir), 0.0, 1.0);
+      if (gradientMode > 0.5 && gradientMode < 1.5) {
+        gradientT = clamp(length(p), 0.0, 1.0);
+      }
+      float stop2 = clamp(gradientStop2, 0.05, 0.95);
+      vec3 gradientResult = mix(auraColor, gradientColor, gradientT);
+      if (gradientMode > 0.5) {
+        gradientResult = gradientT < stop2
+          ? mix(auraColor, gradientColor2, gradientT / stop2)
+          : mix(gradientColor2, gradientColor, (gradientT - stop2) / (1.0 - stop2));
+      }
+      vec3 baseColor = mix(auraColor, gradientResult, gradientEnabled);
+      vec3 color = mix(baseColor, vec3(1.0), core * coreMix);
 
       // Cor pré-multiplicada pelo alfa: necessário para os modos de mistura funcionarem direito.
       return half4(color * a, a);
