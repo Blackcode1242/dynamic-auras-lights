@@ -54,136 +54,63 @@ function render() {
       <section id="editor" class="panel" hidden>
         <div class="sel" id="selInfo"></div>
 
-        <div class="dashboard-grid">
-          <!-- Coluna Esquerda -->
-          <div class="settings-column">
-            <div class="section-title">Efeito e cores</div>
-            <div>
-              <label for="preset">Efeito / Preset</label>
-              <select id="preset">${presetOptions()}</select>
-            </div>
-
-            <div class="row">
-              <div class="grow">
-                <label for="color">Cor</label>
-                <input id="color" type="color" />
-              </div>
-              <div class="grow">
-                <label for="radius" id="radiusLabel">Raio</label>
-                <input id="radius" type="number" min="0.5" max="20" step="0.5" />
+        <div class="config-layout">
+          <section class="config-section">
+            <div class="section-heading"><span class="section-index">01</span><div><h2>Efeito</h2><p>Defina a aura que será aplicada ao elemento.</p></div></div>
+            <div class="section-content">
+              <div><label for="preset">Efeito / Preset</label><select id="preset">${presetOptions()}</select></div>
+              <div class="row">
+                <div class="grow"><label for="color">Cor principal</label><input id="color" type="color" /></div>
+                <div class="grow"><label for="radius" id="radiusLabel">Raio</label><input id="radius" type="number" min="0.5" max="20" step="0.5" /></div>
               </div>
             </div>
+          </section>
 
-            <div class="section-title section-spaced">Gradiente</div>
-            <div class="row">
-              <div class="grow">
-                <label class="switch" style="margin: 4px 0;">
-                  <input id="gradientEnabled" type="checkbox" />
-                  <span class="track"></span>
-                  <span class="switch-text">Gradiente</span>
-                </label>
+          <section class="config-section">
+            <div class="section-heading"><span class="section-index">02</span><div><h2>Gradiente</h2><p>Controle a transição entre as cores.</p></div></div>
+            <div class="section-content">
+              <div class="row align-center">
+                <div class="grow"><label class="switch"><input id="gradientEnabled" type="checkbox" /><span class="track"></span><span class="switch-text">Ativar gradiente</span></label></div>
+                <div class="grow"><label for="gradientMode">Tipo</label><select id="gradientMode"><option value="linear">Linear</option><option value="radial">Radial</option></select></div>
               </div>
-              <div class="grow">
-                <label for="gradientMode">Tipo de gradiente</label>
-                <select id="gradientMode">
-                  <option value="linear">Linear</option>
-                  <option value="radial">Radial</option>
-                </select>
+              <div class="row">
+                <div class="grow"><label for="gradientColor">Cor final / borda</label><input id="gradientColor" type="color" /></div>
+                <div class="grow" id="gradientMiddleColorField"><label for="gradientColor2">Cor intermediária</label><input id="gradientColor2" type="color" /></div>
               </div>
+              <div class="row" id="gradientStop2Field"><div class="grow"><label for="gradientStop2">Posição da cor intermediária <output id="gradientStop2Value"></output></label><input id="gradientStop2" type="range" min="5" max="95" step="1" /></div></div>
+              <div id="gradientAngleRow"><label for="gradientAngle">Direção do gradiente <output id="gradientAngleValue"></output></label><input id="gradientAngle" type="range" min="0" max="360" step="5" /></div>
             </div>
-            <div class="row">
-              <div class="grow">
-                <label for="gradientColor">Cor final / borda</label>
-                <input id="gradientColor" type="color" />
+          </section>
+
+          <section class="config-section">
+            <div class="section-heading"><span class="section-index">03</span><div><h2>Geometria</h2><p>Escolha o formato e o posicionamento da aura.</p></div></div>
+            <div class="section-content">
+              <div class="row">
+                <div class="grow" id="shapeField"><label for="shape">Formato</label><select id="shape"><option value="circle">Círculo</option><option value="square">Quadrado</option><option value="cone">Cone</option><option value="line">Linha</option></select></div>
+                <div class="grow"><label for="placement">Posição</label><select id="placement"><option value="below">Abaixo</option><option value="above">Acima</option></select></div>
               </div>
-              <div class="grow" id="gradientMiddleColorField">
-                <label for="gradientColor2">Cor intermediária</label>
-                <input id="gradientColor2" type="color" />
-              </div>
+              <div id="coneRow"><label for="angle">Abertura do cone <output id="angleValue"></output></label><input id="angle" type="range" min="10" max="170" step="1" /></div>
+              <div id="lineRow"><label for="width">Largura da linha</label><input id="width" type="number" min="0.1" max="10" step="0.1" /></div>
+              <div id="dirRow"><label for="direction">Direção <output id="directionValue"></output></label><input id="direction" type="range" min="-180" max="180" step="5" /></div>
             </div>
-            <div class="row" id="gradientStop2Field">
-              <div class="grow">
-                <label for="gradientStop2">Posição da cor intermediária <output id="gradientStop2Value"></output></label>
-                <input id="gradientStop2" type="range" min="5" max="95" step="1" />
-              </div>
-            </div>
-            <div id="gradientAngleRow">
-              <label for="gradientAngle">Direção do gradiente <output id="gradientAngleValue"></output></label>
-              <input id="gradientAngle" type="range" min="0" max="360" step="5" />
-            </div>
+          </section>
 
-            <div class="section-title section-spaced">Forma e posição</div>
-            <div class="row">
-              <div class="grow" id="shapeField">
-                <label for="shape">Formato</label>
-                <select id="shape">
-                  <option value="circle">Círculo</option>
-                  <option value="square">Quadrado</option>
-                  <option value="cone">Cone</option>
-                  <option value="line">Linha</option>
-                </select>
-              </div>
-              <div class="grow">
-                <label for="placement">Posição</label>
-                <select id="placement">
-                  <option value="below">Abaixo</option>
-                  <option value="above">Acima</option>
-                </select>
-              </div>
+          <section class="config-section">
+            <div class="section-heading"><span class="section-index">04</span><div><h2>Ajustes visuais</h2><p>Refine a aparência e o comportamento da luz.</p></div></div>
+            <div class="section-content">
+              <div><label for="blend">Modo de mistura</label><select id="blend">${BLEND_MODES.map((m) => `<option value="${m.value}">${m.label}</option>`).join("")}</select></div>
+              <div><label for="softness">Suavidade <output id="softnessValue"></output></label><input id="softness" type="range" min="0" max="1" step="0.01" /></div>
+              <div><label for="intensity">Intensidade <output id="intensityValue"></output></label><input id="intensity" type="range" min="0.1" max="1.5" step="0.01" /></div>
+              <div><label for="speed">Velocidade <output id="speedValue"></output></label><input id="speed" type="range" min="0" max="8" step="0.1" /></div>
             </div>
+          </section>
 
-            <div id="coneRow" hidden>
-              <label for="angle">Abertura do cone <output id="angleValue"></output></label>
-              <input id="angle" type="range" min="10" max="170" step="1" />
+          <section class="config-section">
+            <div class="section-heading"><span class="section-index">05</span><div><h2>Integrações</h2><p>Conecte a aura a outras extensões.</p></div></div>
+            <div class="section-content">
+              <div id="fogRow"><label for="fog">Luz no Fog (Dynamic Fog)</label><select id="fog"><option value="off">Desligada</option><option value="primary">Primária</option><option value="secondary">Secundária</option><option value="auxiliary">Auxiliar</option></select></div>
             </div>
-
-            <div id="lineRow" hidden>
-              <label for="width">Largura da linha</label>
-              <input id="width" type="number" min="0.1" max="10" step="0.1" />
-            </div>
-
-            <div id="dirRow" hidden>
-              <label for="direction">Direção <output id="directionValue"></output></label>
-              <input id="direction" type="range" min="-180" max="180" step="5" />
-            </div>
-          </div>
-
-          <!-- Coluna Direita -->
-          <div class="settings-column">
-            <div class="section-title">Aparência e movimento</div>
-            <div>
-              <label for="blend">Modo de mistura</label>
-              <select id="blend">
-                ${BLEND_MODES.map((m) => `<option value="${m.value}">${m.label}</option>`).join("")}
-              </select>
-            </div>
-
-            <div>
-              <label for="softness">Suavidade <output id="softnessValue"></output></label>
-              <input id="softness" type="range" min="0" max="1" step="0.01" />
-            </div>
-
-            <div>
-              <label for="intensity">Intensidade <output id="intensityValue"></output></label>
-              <input id="intensity" type="range" min="0.1" max="1.5" step="0.01" />
-            </div>
-
-            <div>
-              <label for="speed">Velocidade <output id="speedValue"></output></label>
-              <input id="speed" type="range" min="0" max="8" step="0.1" />
-            </div>
-
-            <div class="section-title section-spaced">Integrações</div>
-            <div id="fogRow">
-              <label for="fog">Luz no Fog (Dynamic Fog)</label>
-              <select id="fog">
-                <option value="off">Desligada</option>
-                <option value="primary">Primária</option>
-                <option value="secondary">Secundária</option>
-                <option value="auxiliary">Auxiliar</option>
-              </select>
-            </div>
-          </div>
+          </section>
         </div>
 
         <div id="scheduleRow" class="full-width">
