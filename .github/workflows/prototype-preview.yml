@@ -59,7 +59,7 @@ jobs:
           manifest.background_url = base + 'background.html';
           manifest.action.icon = base + 'icon.svg';
           manifest.action.popover = base + 'index.html';
-          fs.writeFileSync(path, JSON.stringify(manifest, null, 2) + '\n');
+          fs.writeFileSync(path, JSON.stringify(manifest, null, 2));
           NODE
       - name: Upload combined production and preview site
         uses: actions/upload-pages-artifact@v3
