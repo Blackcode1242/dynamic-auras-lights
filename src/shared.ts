@@ -7,7 +7,7 @@ export const EXTENSION_ID = "com.example.dynamic-auras-lights";
 export const AURA_KEY = `${EXTENSION_ID}/aura`;
 export const DRAFT_KEY = `${EXTENSION_ID}/draft`;
 export const EDITOR_ID = `${EXTENSION_ID}/editor`;
-export const VERSION = "1.6.0";
+export const VERSION = "1.8.0";
 // false = só o painel do ícone da barra (manifest). true = também abre o painel lateral (popover) pelo menu.
 // Desligado por padrão: foi depois do painel lateral que a seleção parou de ser identificada.
 export const USE_SIDEBAR = false;
@@ -25,11 +25,12 @@ export function readSharedSelection(): string[] {
 
 export type StyleName = "glow" | "torch" | "ghost" | "flame" | "ring" | "ripple" | "beams" | "electric" | "sparkle" | "bubbles" | "orbit";
 export type MotionName =
-  | "static" | "torch" | "candle" | "faulty" | "powercut" | "neon" | "strobe"
+  | "static" | "torch" | "candle" | "faulty" | "neon" | "strobe"
   | "pulse" | "heartbeat" | "lightning" | "spectral" | "electric";
 export type Group = "light" | "aura" | "condition";
 export type Shape = "circle" | "square" | "cone" | "line";
-export type FogMode = "off" | "primary" | "secondary" | "auxiliary";
+// Oito direções fixas (no mapa, independentes da rotação do token) para cones e linhas.
+export type Direction = "up" | "down" | "left" | "right" | "upLeft" | "upRight" | "downLeft" | "downRight";
 export type Quality = "high" | "medium" | "low";
 export type { Schedule } from "./clock";
 export type Placement = "below" | "above";
@@ -46,18 +47,15 @@ export const PRESETS = {
   // ---- Iluminação ----
   torch:     { label: "Tocha",              group: "light", color: "#ff9b42", intensity: 0.95, speed: 1.8, softness: 0.70, style: "torch",    motion: "torch" },
   candle:    { label: "Vela",               group: "light", color: "#ffcf7a", intensity: 0.90, speed: 1.4, softness: 0.85, style: "glow",     motion: "candle" },
-  fire:      { label: "Fogueira",           group: "light", color: "#ff7a1a", intensity: 1.00, speed: 1.6, softness: 0.75, style: "flame",    motion: "torch" },
   faulty:    { label: "Lâmpada defeituosa", group: "light", color: "#fff2c4", intensity: 1.00, speed: 5.0, softness: 0.55, style: "glow",     motion: "faulty" },
-  powercut:  { label: "Queda de energia",   group: "light", color: "#fff2c4", intensity: 1.00, speed: 1.0, softness: 0.55, style: "glow",     motion: "powercut" },
   neon:      { label: "Neon",               group: "light", color: "#ff3df2", intensity: 1.10, speed: 1.0, softness: 0.45, style: "glow",     motion: "neon" },
   lightning: { label: "Relâmpago",          group: "light", color: "#cfe4ff", intensity: 1.20, speed: 1.2, softness: 0.60, style: "glow",     motion: "lightning" },
   static:    { label: "Luz fixa",           group: "light", color: "#ffe2a1", intensity: 0.85, speed: 0,   softness: 0.60, style: "glow",     motion: "static" },
   // ---- Auras ----
-  arcane:    { label: "Arcana",             group: "aura",  color: "#55aaff", intensity: 0.90, speed: 1.3, softness: 0.65, style: "glow",     motion: "pulse" },
-  divine:    { label: "Divina",             group: "aura",  color: "#ffe8a3", intensity: 0.95, speed: 0.7, softness: 0.80, style: "glow",     motion: "pulse" },
-  spectral:  { label: "Espectral",          group: "aura",  color: "#71e5b4", intensity: 0.85, speed: 1.1, softness: 0.75, style: "ghost",    motion: "spectral" },
-  pulse:     { label: "Pulsante",           group: "aura",  color: "#8c7bff", intensity: 0.95, speed: 1.5, softness: 0.65, style: "glow",     motion: "pulse" },
+  pulse:     { label: "Aura Pulsante",      group: "aura",  color: "#8c7bff", intensity: 0.95, speed: 1.5, softness: 0.65, style: "glow",     motion: "pulse" },
   heartbeat: { label: "Batimento",          group: "aura",  color: "#ff2a3d", intensity: 1.00, speed: 1.4, softness: 0.75, style: "glow",     motion: "heartbeat" },
+  spectral:  { label: "Espectral",          group: "aura",  color: "#71e5b4", intensity: 0.85, speed: 1.1, softness: 0.75, style: "ghost",    motion: "spectral" },
+  ring:      { label: "Anel",               group: "aura",  color: "#66a8ff", intensity: 0.95, speed: 0.8, softness: 0.45, style: "ring",     motion: "pulse" },
   emergency: { label: "Emergência",         group: "aura",  color: "#ff3030", intensity: 1.00, speed: 2.8, softness: 0.40, style: "glow",     motion: "strobe" },
   beacon:    { label: "Giroflex (feixes)",  group: "aura",  color: "#ff3b3b", intensity: 1.10, speed: 1.5, softness: 0.50, style: "beams",    motion: "static" },
   sonar:     { label: "Sonar (ondas)",      group: "aura",  color: "#4fe3ff", intensity: 1.00, speed: 1.0, softness: 0.70, style: "ripple",   motion: "static" },
@@ -66,20 +64,60 @@ export const PRESETS = {
   sparkle:   { label: "Cintilante",         group: "aura",  color: "#ffe9a8", intensity: 1.00, speed: 1.0, softness: 0.70, style: "sparkle",  motion: "static" },
   // ---- Condições (raio pequeno, pensado para ficar em volta do token) ----
   poison:        { label: "Envenenado",     group: "condition", color: "#7ddc4a", intensity: 0.95, speed: 1.0, softness: 0.70, style: "bubbles", motion: "pulse",     radius: 1.4 },
-  bleeding:      { label: "Sangrando",      group: "condition", color: "#d1141f", intensity: 1.00, speed: 1.2, softness: 0.70, style: "glow",    motion: "heartbeat", radius: 1.3 },
   burning:       { label: "Em chamas",      group: "condition", color: "#ff7a1a", intensity: 1.00, speed: 1.8, softness: 0.75, style: "flame",   motion: "torch",     radius: 1.5 },
   frozen:        { label: "Congelado",      group: "condition", color: "#9fe3ff", intensity: 0.95, speed: 0.8, softness: 0.60, style: "sparkle", motion: "static",    radius: 1.4 },
   blessed:       { label: "Abençoado",      group: "condition", color: "#ffe08a", intensity: 0.95, speed: 0.9, softness: 0.80, style: "sparkle", motion: "pulse",     radius: 1.5 },
-  cursed:        { label: "Amaldiçoado",    group: "condition", color: "#7b3fe4", intensity: 0.90, speed: 1.0, softness: 0.75, style: "ghost",   motion: "spectral",  radius: 1.5 },
-  charmed:       { label: "Enfeitiçado",    group: "condition", color: "#ff5fb0", intensity: 0.95, speed: 1.0, softness: 0.80, style: "glow",    motion: "heartbeat", radius: 1.4 },
   frightened:    { label: "Amedrontado",    group: "condition", color: "#8f7bd6", intensity: 0.90, speed: 2.2, softness: 0.60, style: "ghost",   motion: "heartbeat", radius: 1.4 },
-  stunned:       { label: "Atordoado",      group: "condition", color: "#ffd84a", intensity: 1.00, speed: 1.0, softness: 0.60, style: "orbit",   motion: "static",    radius: 1.2 },
-  paralyzed:     { label: "Paralisado",     group: "condition", color: "#ffe34d", intensity: 1.00, speed: 0.8, softness: 0.40, style: "ring",    motion: "static",    radius: 1.3 },
-  concentrating: { label: "Concentrando",   group: "condition", color: "#66a8ff", intensity: 0.90, speed: 0.7, softness: 0.50, style: "ring",    motion: "pulse",     radius: 1.4 },
-  invisible:     { label: "Invisível",      group: "condition", color: "#cfe9ff", intensity: 0.50, speed: 0.9, softness: 0.85, style: "ghost",   motion: "spectral",  radius: 1.3 }
+  stunned:       { label: "Atordoado",      group: "condition", color: "#ffd84a", intensity: 1.00, speed: 1.0, softness: 0.60, style: "orbit",   motion: "static",    radius: 1.2 }
 } satisfies Record<string, PresetDef>;
 
 export type Preset = keyof typeof PRESETS;
+
+// Presets que foram unificados: auras já salvas com a chave antiga passam a usar o preset que ficou.
+// Cor, intensidade, suavidade e velocidade salvas são mantidas; só o estilo/animação base muda.
+const PRESET_ALIASES: Record<string, Preset> = {
+  fire: "torch",
+  powercut: "faulty",
+  arcane: "pulse",
+  divine: "pulse",
+  bleeding: "heartbeat",
+  charmed: "heartbeat",
+  cursed: "spectral",
+  invisible: "spectral",
+  paralyzed: "ring",
+  concentrating: "ring"
+};
+
+export const DIRECTIONS: { id: Direction; label: string; arrow: string; degrees: number }[] = [
+  { id: "up",        label: "Cima",           arrow: "↑", degrees: 0 },
+  { id: "upRight",   label: "Cima direita",   arrow: "↗", degrees: 45 },
+  { id: "right",     label: "Direita",        arrow: "→", degrees: 90 },
+  { id: "downRight", label: "Baixo direita",  arrow: "↘", degrees: 135 },
+  { id: "down",      label: "Baixo",          arrow: "↓", degrees: 180 },
+  { id: "downLeft",  label: "Baixo esquerda", arrow: "↙", degrees: 225 },
+  { id: "left",      label: "Esquerda",       arrow: "←", degrees: 270 },
+  { id: "upLeft",    label: "Cima esquerda",  arrow: "↖", degrees: 315 }
+];
+
+// Aceita a direção nova (texto) ou o ângulo antigo (número em graus, 0 = cima, sentido horário).
+function parseDirection(value: unknown): Direction {
+  if (typeof value === "string" && DIRECTIONS.some((d) => d.id === value)) return value as Direction;
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const norm = ((value % 360) + 360) % 360;
+    return DIRECTIONS[Math.round(norm / 45) % 8].id;
+  }
+  return "up";
+}
+
+export function directionDegrees(direction: Direction) {
+  return (DIRECTIONS.find((d) => d.id === direction) ?? DIRECTIONS[0]).degrees;
+}
+
+// Vetor unitário no mapa (y cresce para baixo): "up" = (0, -1), "right" = (1, 0).
+export function directionVector(direction: Direction): Vec2 {
+  const rad = (directionDegrees(direction) * Math.PI) / 180;
+  return { x: Math.sin(rad), y: -Math.cos(rad) };
+}
 
 export const GROUP_LABELS: Record<Group, string> = { light: "Iluminação", aura: "Auras", condition: "Condições" };
 
@@ -116,8 +154,7 @@ export type AuraConfig = {
   blendMode: BlendModeName;
   angle: number;      // abertura total do cone, em graus
   width: number;      // largura da linha, em quadrados
-  direction: number;  // direção do cone/linha em relação ao topo do token, em graus (horário)
-  fog: FogMode;       // luz do Dynamic Fog (só para tokens)
+  direction: Direction; // direção fixa do cone/linha no mapa (não gira com o token)
   schedule: Schedule; // quando acende, se o Dynamic Day Cycle estiver ativo na cena
 };
 
@@ -139,8 +176,7 @@ export const DEFAULT_CONFIG: AuraConfig = {
   blendMode: "SRC_OVER",
   angle: 60,
   width: 1,
-  direction: 0,
-  fog: "off",
+  direction: "up",
   schedule: "always"
 };
 
@@ -152,10 +188,10 @@ function num(value: unknown, fallback: number, min: number, max: number) {
 // Aceita qualquer coisa vinda dos metadados e devolve uma configuração válida.
 export function normalizeConfig(raw: unknown): AuraConfig {
   const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
-  const preset = typeof r.preset === "string" && r.preset in PRESETS ? (r.preset as Preset) : DEFAULT_CONFIG.preset;
+  const aliased = typeof r.preset === "string" ? (PRESET_ALIASES[r.preset] ?? r.preset) : undefined;
+  const preset = typeof aliased === "string" && aliased in PRESETS ? (aliased as Preset) : DEFAULT_CONFIG.preset;
   const color = typeof r.color === "string" && /^#[0-9a-fA-F]{6}$/.test(r.color) ? r.color : PRESETS[preset].color;
   const shape: Shape = r.shape === "square" || r.shape === "cone" || r.shape === "line" ? r.shape : "circle";
-  const fog: FogMode = r.fog === "primary" || r.fog === "secondary" || r.fog === "auxiliary" ? r.fog : "off";
   const placement: Placement = r.placement === "above" ? "above" : "below";
   const blendMode = BLEND_MODES.some((m) => m.value === r.blendMode) ? (r.blendMode as BlendModeName) : "SRC_OVER";
   return {
@@ -176,8 +212,7 @@ export function normalizeConfig(raw: unknown): AuraConfig {
     blendMode,
     angle: num(r.angle, DEFAULT_CONFIG.angle, 10, 170),
     width: num(r.width, DEFAULT_CONFIG.width, 0.1, 10),
-    direction: num(r.direction, DEFAULT_CONFIG.direction, -180, 180),
-    fog,
+    direction: parseDirection(r.direction),
     schedule: r.schedule === "night" || r.schedule === "day" ? r.schedule : "always"
   };
 }
@@ -194,18 +229,17 @@ export function saveDraft(config: AuraConfig) {
   try { localStorage.setItem(DRAFT_KEY, JSON.stringify(config)); } catch { /* ignora */ }
 }
 
-// ---- Configurações deste computador (qualidade e calibração do fog) ----
+// ---- Configurações deste computador (qualidade) ----
 // Ficam no navegador e não na cena: o desempenho depende da máquina de cada pessoa.
 export const SETTINGS_KEY = `${EXTENSION_ID}/settings`;
-export type Settings = { quality: Quality; fogOffset: number };
-export const DEFAULT_SETTINGS: Settings = { quality: "high", fogOffset: 0 };
+export type Settings = { quality: Quality };
+export const DEFAULT_SETTINGS: Settings = { quality: "high" };
 
 export function getSettings(): Settings {
   try {
     const raw = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? "null") ?? {};
     return {
-      quality: raw.quality === "medium" || raw.quality === "low" ? raw.quality : "high",
-      fogOffset: num(raw.fogOffset, 0, -180, 180)
+      quality: raw.quality === "medium" || raw.quality === "low" ? raw.quality : "high"
     };
   } catch { return { ...DEFAULT_SETTINGS }; }
 }
@@ -405,16 +439,89 @@ export function simplifyPolygon(points: Vec2[], tolerance: number, maxPoints = M
   return out;
 }
 
+// Envoltória convexa (Andrew monotone chain).
+function convexHull(points: Vec2[]): Vec2[] {
+  const pts = points
+    .map((p) => ({ x: p.x, y: p.y }))
+    .sort((a, b) => (a.x === b.x ? a.y - b.y : a.x - b.x));
+  if (pts.length < 3) return pts;
+  const cross = (o: Vec2, a: Vec2, b: Vec2) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+  const lower: Vec2[] = [];
+  for (const p of pts) {
+    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop();
+    lower.push(p);
+  }
+  const upper: Vec2[] = [];
+  for (let i = pts.length - 1; i >= 0; i--) {
+    const p = pts[i];
+    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop();
+    upper.push(p);
+  }
+  lower.pop();
+  upper.pop();
+  return lower.concat(upper);
+}
+
+// Linha a partir de um desenho: o contorno "varrido" na direção escolhida, por "length" pixels.
+// A largura do feixe é a largura do próprio desenho (perpendicular à direção).
+// Usa a envoltória convexa: para desenhos côncavos, as reentrâncias são preenchidas.
+export function lineFromOutline(base: Vec2[], dir: Vec2, length: number): Vec2[] {
+  return convexHull([...base, ...base.map((p) => ({ x: p.x + dir.x * length, y: p.y + dir.y * length }))]);
+}
+
+// Cone a partir de um desenho: sai da face do desenho voltada para a direção escolhida,
+// com a largura do desenho na base, abrindo "halfAngle" para cada lado e alcançando "length" pixels.
+export function coneFromOutline(base: Vec2[], dir: Vec2, length: number, halfAngle: number): Vec2[] {
+  const n = { x: -dir.y, y: dir.x }; // perpendicular à direção
+  let front = -Infinity;
+  let aMin = Infinity;
+  let aMax = -Infinity;
+  for (const p of base) {
+    front = Math.max(front, p.x * dir.x + p.y * dir.y);
+    const a = p.x * n.x + p.y * n.y;
+    aMin = Math.min(aMin, a);
+    aMax = Math.max(aMax, a);
+  }
+  const steps = 12;
+  const far: Vec2[] = [];
+  for (let k = 0; k <= steps; k++) {
+    const s = k / steps;
+    const phi = -halfAngle + 2 * halfAngle * s;
+    const lateral = aMin + (aMax - aMin) * s; // do canto esquerdo ao direito da face da frente
+    const qx = dir.x * front + n.x * lateral;
+    const qy = dir.y * front + n.y * lateral;
+    const ux = dir.x * Math.cos(phi) + n.x * Math.sin(phi);
+    const uy = dir.y * Math.cos(phi) + n.y * Math.sin(phi);
+    far.push({ x: qx + ux * length, y: qy + uy * length });
+  }
+  return convexHull([...base, ...far]);
+}
+
+// Formato final do efeito de um desenho: contorno e quanto ele se expande para fora.
+// Círculo: contorno do desenho + expansão (raio). Cone/linha: contorno projetado na direção, "raio" = alcance.
+export function areaEffectShape(base: Vec2[], cfg: AuraConfig, dpi: number): { polygon: Vec2[]; spread: number } {
+  if (cfg.shape === "cone" || cfg.shape === "line") {
+    const length = Math.max(0.5, cfg.radius) * dpi;
+    const dir = directionVector(cfg.direction);
+    const polygon = cfg.shape === "line"
+      ? lineFromOutline(base, dir, length)
+      : coneFromOutline(base, dir, length, (Math.min(170, Math.max(10, cfg.angle)) * Math.PI) / 360);
+    return { polygon, spread: 0 };
+  }
+  return { polygon: base, spread: Math.max(0, cfg.radius) * dpi };
+}
+
 export type AreaGeometry = { x: number; y: number; width: number; height: number; sksl: string };
 
 // Calcula onde fica o efeito (caixa que envolve o desenho + a expansão) e o shader com o contorno embutido.
 export function areaGeometry(polygon: Vec2[], cfg: AuraConfig, dpi: number, quality: Quality = "high"): AreaGeometry {
   const maxPts = quality === "high" ? MAX_AREA_POINTS : quality === "medium" ? 24 : 12;
-  let pts = simplifyPolygon(polygon, Math.max(1, dpi * 0.04), maxPts);
+  const shaped = areaEffectShape(polygon, cfg, dpi);
+  let pts = simplifyPolygon(shaped.polygon, Math.max(1, dpi * 0.04), maxPts);
   if (pts.length < 3) {
     // Linha ou ponto: usa a caixa do desenho para ainda ter uma área.
-    const xs = polygon.map((p) => p.x);
-    const ys = polygon.map((p) => p.y);
+    const xs = shaped.polygon.map((p) => p.x);
+    const ys = shaped.polygon.map((p) => p.y);
     const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
     const pad = dpi * 0.25;
     pts = [
@@ -422,7 +529,7 @@ export function areaGeometry(polygon: Vec2[], cfg: AuraConfig, dpi: number, qual
       { x: maxX + pad, y: maxY + pad }, { x: minX - pad, y: maxY + pad }
     ];
   }
-  const spread = Math.max(0, cfg.radius) * dpi;
+  const spread = shaped.spread;
   const margin = spread + 2;
   const xs = pts.map((p) => p.x);
   const ys = pts.map((p) => p.y);
@@ -472,7 +579,7 @@ export function tokenCenter(token: Image, dpi: number) {
 
 // ---- Shader ----
 // Animações (0 = apagado, 1 = aceso; pode passar de 1 para dar clarão).
-const MOTION_FUNCTIONS = `
+export const MOTION_FUNCTIONS = `
   float hash(float n) {
     n = mod(n, 4096.0);
     float x = fract(n * 0.1031);
@@ -522,19 +629,6 @@ const MOTION_FUNCTIONS = `
     float local = fract(k * 3.0);
     float kick = 1.0 + 0.45 * (1.0 - smoothstep(0.0, 0.3, local)) * bad;
     return on * kick;
-  }
-
-  // Queda de energia: acesa -> tremida -> apaga -> tremida -> volta com clarão.
-  float powercutMotion(float t, float sp) {
-    float c = fract(t * sp * 0.12);
-    float burst1 = step(0.55, c) * (1.0 - step(0.70, c));
-    float off    = step(0.70, c) * (1.0 - step(0.88, c));
-    float burst2 = step(0.88, c) * (1.0 - step(0.95, c));
-    float st = step(0.5, hash(floor(t * 10.0)));
-    float on = mix(1.0, st, burst1 + burst2);
-    on = mix(on, 0.0, off);
-    float flash = 1.0 + 0.5 * (1.0 - smoothstep(0.95, 0.99, c)) * step(0.95, c);
-    return on * flash;
   }
 
   // Neon: zumbido constante, com falhas rápidas de vez em quando.
@@ -602,10 +696,9 @@ const MOTION_EXPR: Record<MotionName, string> = {
   torch: "torchMotion(t, sp)",
   candle: "candleMotion(t, sp)",
   faulty: "faultyMotion(t, sp)",
-  powercut: "powercutMotion(t, sp)",
   neon: "neonMotion(t, sp)",
   strobe: "strobeMotion(t, sp)",
-  pulse: "pulseMotion(t, sp)",
+  pulse: "(speed <= 0.001 ? 1.0 : pulseMotion(t, sp))", // velocidade 0 = anel/aura parada, sem pulsar
   heartbeat: "heartbeatMotion(t, sp)",
   lightning: "lightningMotion(t, sp)",
   spectral: "spectralMotion(t, sp)",
@@ -778,7 +871,7 @@ function buildShader(presetKey: Preset, extraUniforms: string, helpers: string, 
 }
 
 // Token: círculo, quadrado, cone ou linha, saindo do centro da imagem.
-// Para cone/linha, "dirRad" é a direção (0 = para cima, sentido horário) e o efeito gira junto com o token.
+// Para cone/linha, "dirRad" é a direção fixa no mapa (0 = para cima, sentido horário). O efeito não gira com o token.
 export function shaderFor(presetKey: Preset, quality: Quality = "high") {
   return buildShader(presetKey,
     "uniform float shape; uniform float coneHalf; uniform float coneIn; uniform float beamHalf; uniform float dirRad;", "", `
@@ -808,7 +901,7 @@ export function shaderFor(presetKey: Preset, quality: Quality = "high") {
       }`, quality);
 }
 
-const AREA_HELPERS = `
+export const AREA_HELPERS = `
     // Um lado do contorno: atualiza a menor distância (dist) e o sinal dentro/fora (sgn).
     void edgeStep(vec2 c, vec2 a, vec2 b, inout float dist, inout float sgn) {
       vec2 pa = c - a;
@@ -851,34 +944,6 @@ export function tokenShapeUniforms(cfg: AuraConfig) {
     coneHalf: half,
     coneIn: sinH / (1 + sinH), // raio do maior círculo que cabe no cone (normaliza a borda)
     beamHalf: Math.min(1, cfg.width / (2 * Math.max(0.5, cfg.radius))),
-    dirRad: (cfg.direction * Math.PI) / 180
-  };
-}
-
-// ---- Luz do Dynamic Fog (item LIGHT do SDK) ----
-// Suposição, não confirmada na documentação: ângulos em graus e rotação 0 = mesmo "zero" do item.
-// "fogOffset" (Configurações) corrige a direção se o cone do fog sair torto em relação ao visual.
-export function fogParams(token: Image, cfg: AuraConfig, dpi: number, quality: Quality, fogOffset: number) {
-  const radius = Math.max(0.5, cfg.radius) * dpi;
-  const directional = isDirectional(cfg);
-  let outer = 0;
-  if (cfg.shape === "cone") outer = cfg.angle;
-  else if (cfg.shape === "line") {
-    // O fog não tem "faixa": aproxima por um cone bem fino que cobre a largura no meio do alcance.
-    const widthPx = cfg.width * dpi;
-    outer = Math.min(40, Math.max(4, (2 * Math.atan2(widthPx / 2, radius * 0.5) * 180) / Math.PI));
-  }
-  const soft = quality === "high" ? cfg.softness : 0;
-  return {
-    position: tokenCenter(token, dpi),
-    rotation: token.rotation + (directional ? cfg.direction + fogOffset : 0),
-    attenuationRadius: radius,
-    // sourceRadius 0 usa o caminho mais rápido do fog (sombras duras): só em qualidade alta há sombras suaves.
-    sourceRadius: quality === "high" ? 0.15 * dpi : 0,
-    falloff: cfg.softness,
-    directional,
-    outerAngle: outer,
-    innerAngle: outer * (1 - 0.35 * soft),
-    lightType: cfg.fog === "secondary" ? "SECONDARY" : cfg.fog === "auxiliary" ? "AUXILIARY" : "PRIMARY"
+    dirRad: (directionDegrees(cfg.direction) * Math.PI) / 180
   };
 }

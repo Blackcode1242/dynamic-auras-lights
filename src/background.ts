@@ -1,28 +1,34 @@
 import OBR, { buildEffect, isImage, isShape } from "@owlbear-rodeo/sdk";
-import * as SDK from "@owlbear-rodeo/sdk";
 import type { Image, Item, Layer } from "@owlbear-rodeo/sdk";
 import {
-  AURA_KEY, EDITOR_ID, EXTENSION_ID, SETTINGS_KEY, areaGeometry, areaPolygon, fogParams, getAura,
+  AURA_KEY, EDITOR_ID, EXTENSION_ID, SETTINGS_KEY, areaGeometry, areaPolygon, getAura,
   getSettings, hexToRgb, isArea, isAuraTarget, isDirectional, loadDraft, rotate, shaderFor,
-  showDrawing, tokenCenter, tokenShapeUniforms, USE_SIDEBAR, VERSION, writeSharedSelection, writeStatus
+  showDrawing, tokenCenter, tokenShapeUniforms, USE_SIDEBAR, VERSION, writeSharedSelection
 } from "./shared";
 import type { Area, AuraConfig, Quality } from "./shared";
 import { lightIsOn, readClock } from "./clock";
 import type { ClockState, Schedule } from "./clock";
+import {
+  SPECIAL_RUNS_KEY, SPECIAL_STAGE, SPECIAL_TAG, pruneRuns, readRuns, revealAt, runFrame, runSeed, runState
+} from "./special";
+import type { Run, RunStage, RunState } from "./special";
+import { specialShader } from "./special-shaders";
 
 // Marca nos efeitos locais de qual token eles são, e a "assinatura" da última configuração aplicada.
 const TAG = `${EXTENSION_ID}/effect-for`;
 const SIG = `${EXTENSION_ID}/signature`;
-// Luzes do Dynamic Fog (itens LIGHT locais): qual token, assinatura e tipo (redonda ou cone).
-const FOGTAG = `${EXTENSION_ID}/fog-for`;
-const FOGSIG = `${EXTENSION_ID}/fog-signature`;
-const FOGKIND = `${EXTENSION_ID}/fog-kind`;
 function assetUrl(file: string) {
   // Caminho absoluto: o Owlbear carrega ícones fora do iframe da extensão.
   return new URL(file, document.baseURI).href;
 }
 
 // ---------- Desenho dos efeitos ----------
+
+// Rotação do efeito de um token. Cone e linha apontam numa direção fixa do mapa, então não giram com o token.
+// O quadrado acompanha a rotação do token; o círculo não depende dela.
+function effectRotationFor(token: Image, cfg: AuraConfig) {
+  return cfg.shape === "square" ? token.rotation : 0;
+}
 
 function effectProps(token: Image, cfg: AuraConfig, dpi: number, effectRotation: number, quality: Quality) {
   const radius = Math.max(0.5, cfg.radius) * dpi;
@@ -59,10 +65,11 @@ function effectProps(token: Image, cfg: AuraConfig, dpi: number, effectRotation:
 
 // Tudo que, se mudar, exige atualizar o efeito. A posição do item fica de fora:
 // o próprio Owlbear move efeitos anexados junto com o item.
-// Cone e linha incluem a rotação: o efeito é reposicionado quando o token gira.
+// Cone, linha e quadrado incluem a rotação do token: como o Owlbear gira os efeitos anexados junto com o item,
+// o efeito é corrigido a cada giro (cone/linha voltam à direção fixa; o quadrado acompanha o token).
 function signature(item: Image | Area, cfg: AuraConfig, dpi: number, quality: Quality) {
   if (isImage(item)) {
-    const rot = isDirectional(cfg) ? item.rotation : 0;
+    const rot = isDirectional(cfg) || cfg.shape === "square" ? item.rotation : 0;
     return JSON.stringify([cfg, dpi, quality, rot, item.scale, item.image.width, item.image.height, item.grid]);
   }
   const shape = isShape(item) ? [item.shapeType, item.width, item.height] : [hash(JSON.stringify(item.points))];
@@ -124,84 +131,6 @@ function createEffect(item: Image | Area, cfg: AuraConfig, dpi: number, quality:
     .build();
 }
 
-// ---------- Luzes do Dynamic Fog ----------
-// O fog dinâmico é nativo do Owlbear (item LIGHT, só local). Cada pessoa cria as suas luzes aqui.
-type FogWanted = Map<string, { token: Image; cfg: AuraConfig }>;
-
-function makeLight(token: Image, fp: ReturnType<typeof fogParams>, sig: string, kind: string) {
-  const buildLight = (SDK as any).buildLight as () => any;
-  const b = buildLight()
-    .position(fp.position)
-    .rotation(fp.rotation)
-    .attenuationRadius(fp.attenuationRadius)
-    .sourceRadius(fp.sourceRadius)
-    .falloff(fp.falloff)
-    .attachedTo(token.id)
-    .locked(true)
-    .disableHit(true)
-    .zIndex(0) // 0 ou mais: a luz corta o fog estático em vez de ficar escondida por ele
-    .metadata({ [FOGTAG]: token.id, [FOGSIG]: sig, [FOGKIND]: kind });
-  if (fp.directional) b.innerAngle(fp.innerAngle).outerAngle(fp.outerAngle);
-  const light = b.build();
-  light.lightType = fp.lightType; // o builder não tem método para o tipo da luz
-  return light as Item;
-}
-
-async function syncFog(locals: Item[], wanted: FogWanted, dpi: number, quality: Quality, fogOffset: number) {
-  const supported = typeof (SDK as any).buildLight === "function";
-  if (!supported) {
-    if (wanted.size) writeStatus({ fog: "indisponível: esta versão do SDK não tem buildLight (atualize @owlbear-rodeo/sdk)" });
-    return;
-  }
-
-  const existing = new Map<string, Item>();
-  const stale: string[] = [];
-  for (const local of locals) {
-    const tokenId = local.metadata[FOGTAG];
-    if (typeof tokenId !== "string") continue;
-    if (wanted.has(tokenId) && !existing.has(tokenId)) existing.set(tokenId, local);
-    else stale.push(local.id);
-  }
-
-  const toAdd: Item[] = [];
-  const toUpdate: { light: Item; fp: ReturnType<typeof fogParams>; sig: string }[] = [];
-  for (const [tokenId, { token, cfg }] of wanted) {
-    const fp = fogParams(token, cfg, dpi, quality, fogOffset);
-    const kind = fp.directional ? "cone" : "round";
-    const sig = `${signature(token, cfg, dpi, quality)}|${token.rotation}|${fogOffset}`;
-    const light = existing.get(tokenId);
-    if (!light) toAdd.push(makeLight(token, fp, sig, kind));
-    else if (light.metadata[FOGKIND] !== kind) {
-      // Troca entre redonda e cone: recria, porque os ângulos não podem ser "desligados" no lugar.
-      stale.push(light.id);
-      toAdd.push(makeLight(token, fp, sig, kind));
-    } else if (light.metadata[FOGSIG] !== sig) toUpdate.push({ light, fp, sig });
-  }
-
-  if (stale.length) await OBR.scene.local.deleteItems(stale);
-  if (toAdd.length) await OBR.scene.local.addItems(toAdd);
-  if (toUpdate.length) {
-    const byId = new Map(toUpdate.map((u) => [u.light.id, u]));
-    await OBR.scene.local.updateItems(toUpdate.map((u) => u.light), (drafts) => {
-      for (const draft of drafts) {
-        const u = byId.get(draft.id);
-        if (!u) continue;
-        const fx = draft as any;
-        fx.position = u.fp.position;
-        fx.rotation = u.fp.rotation;
-        fx.attenuationRadius = u.fp.attenuationRadius;
-        fx.sourceRadius = u.fp.sourceRadius;
-        fx.falloff = u.fp.falloff;
-        if (u.fp.directional) { fx.innerAngle = u.fp.innerAngle; fx.outerAngle = u.fp.outerAngle; }
-        fx.lightType = u.fp.lightType;
-        fx.metadata[FOGSIG] = u.sig;
-      }
-    });
-  }
-  writeStatus({ fog: wanted.size ? `${wanted.size} luz(es) no fog` : "nenhuma luz de fog ligada" });
-}
-
-
 // Relógio do Dynamic Day Cycle (metadados da cena). null = não usado: tudo continua sempre aceso.
 let clock: ClockState | null = null;
 // Itens com agenda e o último resultado aplicado; o intervalo abaixo só dispara sync quando algum muda.
@@ -214,10 +143,9 @@ function gateSignature(now: number) {
 async function sync() {
   const dpi = await OBR.scene.grid.getDpi();
   const items = await OBR.scene.items.getItems();
-  const { quality, fogOffset } = getSettings();
+  const { quality } = getSettings();
 
   const wanted = new Map<string, { item: Image | Area; cfg: AuraConfig }>();
-  const fogWanted: FogWanted = new Map();
   const now = Date.now();
   const nextGated: { id: string; schedule: Schedule }[] = [];
   for (const item of items) {
@@ -225,10 +153,9 @@ async function sync() {
     const cfg = getAura(item);
     if (!cfg) continue;
     if (cfg.schedule !== "always") nextGated.push({ id: item.id, schedule: cfg.schedule });
-    // Fora do horário: o item é tratado como sem aura (some o efeito e a luz do fog).
+    // Fora do horário: o item é tratado como sem aura (some o efeito).
     if (!lightIsOn(item.id, cfg.schedule, clock, now)) continue;
     wanted.set(item.id, { item, cfg });
-    if (isImage(item) && cfg.fog !== "off") fogWanted.set(item.id, { token: item, cfg });
   }
 
   gated = nextGated;
@@ -253,7 +180,7 @@ async function sync() {
     const sig = signature(item, cfg, dpi, quality);
     if (!effect) {
       if (isImage(item)) {
-        const rot = isDirectional(cfg) ? item.rotation : 0;
+        const rot = effectRotationFor(item, cfg);
         toAdd.push(createEffect(item, cfg, dpi, quality, effectProps(item, cfg, dpi, rot, quality), rot));
       } else {
         toAdd.push(createEffect(item, cfg, dpi, quality, await areaProps(item, cfg, dpi, quality), 0));
@@ -280,8 +207,8 @@ async function sync() {
           props = u.area;
         } else {
           const token = u.item as Image;
-          // Cone/linha giram com o token; os demais deixam o Owlbear cuidar da rotação.
-          if (isDirectional(u.cfg)) fx.rotation = token.rotation;
+          // Cone/linha ficam fixos no mapa (rotação 0); o quadrado acompanha o token.
+          fx.rotation = effectRotationFor(token, u.cfg);
           props = effectProps(token, u.cfg, dpi, fx.rotation ?? 0, quality);
         }
         fx.width = props.width;
@@ -295,14 +222,6 @@ async function sync() {
         fx.metadata[SIG] = u.sig;
       }
     });
-  }
-
-  // O fog é isolado: se a API de luz falhar ou não existir, os efeitos visuais continuam funcionando.
-  try {
-    await syncFog(locals, fogWanted, dpi, quality, fogOffset);
-  } catch (error) {
-    console.error("Dynamic Auras: falha ao sincronizar as luzes do fog", error);
-    writeStatus({ fog: `erro: ${String(error)}` });
   }
 }
 
@@ -461,6 +380,168 @@ function setupContextMenu() {
   });
 }
 
+// ---------- Efeitos especiais ----------
+// Os disparos ficam nos metadados da cena (gravados pelo mestre). Cada navegador desenha o efeito localmente e
+// calcula o andamento pela hora do disparo, então todos veem a mesma coisa sem trocar mensagens a cada quadro.
+
+let runs: Run[] = [];
+let isGm = false;
+// Efeito local de cada disparo e o estágio em que ele foi criado (muda de "main" para "trail" no rastro).
+const specialLocals = new Map<string, { itemId: string; stage: RunStage }>();
+// Disparos cujo último quadro (estado final) já foi enviado: evita atualizar sem necessidade.
+const settled = new Set<string>();
+
+function specialUniforms(run: Run, st: RunState) {
+  return [
+    { name: "intensity", value: run.intensity },
+    { name: "speed", value: run.speed },
+    { name: "fxColor", value: hexToRgb(run.color) },
+    { name: "progress", value: st.progress },
+    { name: "fade", value: st.fade },
+    { name: "seed", value: runSeed(run.id) }
+  ];
+}
+
+function buildSpecialEffect(run: Run, st: RunState) {
+  const frame = runFrame(run);
+  return buildEffect()
+    .effectType("STANDALONE")
+    .width(frame.width)
+    .height(frame.height)
+    .position({ x: frame.x, y: frame.y })
+    .layer((run.placement === "above" ? "ATTACHMENT" : "DRAWING") as Layer)
+    .blendMode(run.blendMode)
+    .locked(true)
+    .disableHit(true)
+    .uniforms(specialUniforms(run, st))
+    .sksl(specialShader(st.effect, frame.geometry))
+    .metadata({ [SPECIAL_TAG]: run.id, [SPECIAL_STAGE]: st.stage })
+    .build();
+}
+
+async function syncSpecials() {
+  const now = Date.now();
+  const wanted = new Map<string, { run: Run; st: RunState }>();
+  for (const run of runs) {
+    const st = runState(run, now);
+    if (st.stage !== "done") wanted.set(run.id, { run, st });
+  }
+
+  const locals = await OBR.scene.local.getItems();
+  const keep = new Map<string, Item>();
+  const stale: string[] = [];
+  for (const local of locals) {
+    const runId = local.metadata[SPECIAL_TAG];
+    if (typeof runId !== "string") continue;
+    const w = wanted.get(runId);
+    if (w && !keep.has(runId) && local.metadata[SPECIAL_STAGE] === w.st.stage) keep.set(runId, local);
+    else stale.push(local.id); // disparo terminado, desfeito, duplicado ou em outro estágio
+  }
+  if (stale.length) await OBR.scene.local.deleteItems(stale);
+
+  const toAdd: Item[] = [];
+  specialLocals.clear();
+  for (const [runId, { run, st }] of wanted) {
+    const existing = keep.get(runId);
+    if (existing) {
+      specialLocals.set(runId, { itemId: existing.id, stage: st.stage });
+      continue;
+    }
+    const effect = buildSpecialEffect(run, st);
+    toAdd.push(effect);
+    specialLocals.set(runId, { itemId: effect.id, stage: st.stage });
+    settled.delete(runId + st.stage);
+  }
+  if (toAdd.length) await OBR.scene.local.addItems(toAdd);
+}
+
+let specialRunning = false;
+let specialAgain = false;
+function queueSpecialSync() {
+  if (specialRunning) { specialAgain = true; return; }
+  specialRunning = true;
+  (async () => {
+    try {
+      do {
+        specialAgain = false;
+        try { await syncSpecials(); } catch (error) { console.error("Dynamic Auras: falha nos efeitos especiais", error); }
+      } while (specialAgain);
+    } finally {
+      specialRunning = false;
+    }
+  })();
+}
+
+// Andamento: só atualiza os efeitos que ainda estão mudando (entrada, saída e rastro). Depois que o efeito
+// chega ao ápice e fica parado, o próprio shader continua animando os movimentos em repetição.
+let ticking = false;
+async function specialTick() {
+  if (ticking || specialRunning || !runs.length) return;
+  ticking = true;
+  try {
+    const now = Date.now();
+    const updates: { id: string; run: Run; st: RunState; key: string }[] = [];
+    let resync = false;
+    for (const run of runs) {
+      const st = runState(run, now);
+      const cur = specialLocals.get(run.id);
+      if (st.stage === "done") { if (cur) resync = true; continue; }
+      if (!cur || cur.stage !== st.stage) { resync = true; continue; }
+      const key = run.id + st.stage;
+      if (st.animating) { settled.delete(key); updates.push({ id: cur.itemId, run, st, key }); }
+      else if (!settled.has(key)) { updates.push({ id: cur.itemId, run, st, key }); settled.add(key); }
+    }
+    if (resync) queueSpecialSync();
+    if (updates.length) {
+      const byId = new Map(updates.map((u) => [u.id, u]));
+      await OBR.scene.local.updateItems(updates.map((u) => u.id), (drafts) => {
+        for (const draft of drafts) {
+          const u = byId.get(draft.id);
+          if (u) (draft as any).uniforms = specialUniforms(u.run, u.st);
+        }
+      });
+    }
+  } catch (error) {
+    console.error("Dynamic Auras: falha ao animar efeito especial", error);
+  } finally {
+    ticking = false;
+  }
+}
+
+// Só o mestre mexe nos itens e nos metadados da cena: revela tokens no ápice e limpa disparos antigos.
+let housekeeping = false;
+async function specialHousekeeping() {
+  if (!isGm || housekeeping || !runs.length) return;
+  housekeeping = true;
+  try {
+    const now = Date.now();
+    const due = runs.filter((run) => {
+      const at = revealAt(run);
+      return at !== null && now >= at;
+    });
+    if (due.length) {
+      const ids = due.map((run) => run.revealItemId!).filter((id, i, all) => all.indexOf(id) === i);
+      await OBR.scene.items.updateItems(ids, (items) => {
+        for (const item of items) item.visible = true;
+      });
+      const next = runs.map((run) => (due.includes(run) ? { ...run, revealed: true } : run));
+      await OBR.scene.setMetadata({ [SPECIAL_RUNS_KEY]: { runs: next } });
+      return;
+    }
+    const kept = pruneRuns(runs, now);
+    if (kept.length !== runs.length) await OBR.scene.setMetadata({ [SPECIAL_RUNS_KEY]: { runs: kept } });
+  } catch (error) {
+    console.error("Dynamic Auras: falha ao revelar ou limpar efeitos especiais", error);
+  } finally {
+    housekeeping = false;
+  }
+}
+
+function applyRunsFromMeta(meta: unknown) {
+  runs = readRuns(meta);
+  queueSpecialSync();
+}
+
 // ---------- Início ----------
 
 let unsubscribers: Array<() => void> = [];
@@ -472,11 +553,13 @@ function start() {
     OBR.scene.onMetadataChange((meta) => {
       clock = readClock(meta);
       queueSync();
+      applyRunsFromMeta(meta);
     })
   ];
   OBR.scene.getMetadata().then((meta) => {
     clock = readClock(meta);
     queueSync();
+    applyRunsFromMeta(meta);
   }).catch(() => queueSync());
 }
 function stop() {
@@ -485,6 +568,9 @@ function stop() {
   clock = null;
   gated = [];
   lastGate = "";
+  runs = [];
+  specialLocals.clear();
+  settled.clear();
 }
 
 OBR.onReady(async () => {
@@ -492,7 +578,7 @@ OBR.onReady(async () => {
   // O script de fundo espelha a seleção do jogador para o painel (segunda fonte, caso a do painel falhe).
   OBR.player.onChange((player) => writeSharedSelection(player.selection ?? []));
   OBR.player.getSelection().then((ids) => writeSharedSelection(ids ?? [])).catch(() => {});
-  // Qualidade e calibração do fog são gravadas pelo painel (mesma origem): reaplica quando mudarem.
+  // A qualidade é gravada pelo painel (mesma origem): reaplica quando mudar.
   window.addEventListener("storage", (e) => {
     if (e.key === SETTINGS_KEY) queueSync();
   });
@@ -500,6 +586,12 @@ OBR.onReady(async () => {
   window.setInterval(() => {
     if (gated.length && gateSignature(Date.now()) !== lastGate) queueSync();
   }, 1000);
+  // Papel do jogador: só o mestre revela tokens e limpa disparos antigos.
+  OBR.player.getRole().then((role) => { isGm = role === "GM"; }).catch(() => {});
+  OBR.player.onChange((player) => { isGm = player.role === "GM"; });
+  // Andamento dos efeitos especiais (cerca de 30 quadros por segundo, só enquanto algo está mudando).
+  window.setInterval(() => { void specialTick(); }, 33);
+  window.setInterval(() => { void specialHousekeeping(); }, 250);
   OBR.scene.onReadyChange((ready) => (ready ? start() : stop()));
   if (await OBR.scene.isReady()) start();
 });
